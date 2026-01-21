@@ -31,31 +31,31 @@ export default function PrintableContract({ contract, client, items, onClose }: 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center py-8 bg-gray-100/90 backdrop-blur-sm overflow-auto print-only print:p-0 print:block print:bg-white print:overflow-visible">
-            {/* Print Overlay Controls (Hidden on Print) */}
-            <div className="fixed top-4 right-4 flex gap-4 print:hidden z-50">
+        <div className="fixed inset-0 z-[100] flex flex-col items-center bg-gray-100/95 backdrop-blur-md overflow-y-auto no-scrollbar print-only print:p-0 print:block print:bg-white print:overflow-visible">
+            {/* Print Overlay Controls (Sticky on top) */}
+            <div className="sticky top-0 w-full flex justify-end gap-3 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm print:hidden z-50 shrink-0">
                 <button
                     onClick={onClose}
-                    className="px-4 py-2 bg-white text-gray-700 font-bold rounded-lg shadow-lg hover:bg-gray-100"
+                    className="px-4 h-10 bg-white text-gray-700 font-bold rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 active:scale-95 transition-all text-sm"
                 >
                     Fechar
                 </button>
                 <button
                     onClick={() => window.print()}
-                    className="px-4 py-2 bg-primary text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 flex items-center gap-2"
+                    className="px-4 h-10 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-blue-600 active:scale-95 transition-all flex items-center gap-2 text-sm"
                 >
-                    <span className="material-symbols-outlined">print</span>
+                    <span className="material-symbols-outlined text-lg">print</span>
                     Imprimir
                 </button>
             </div>
 
-            {/* A4 Paper Container */}
-            <div className="bg-white w-[210mm] min-w-[210mm] px-[12mm] py-[6mm] shadow-2xl print:shadow-none print:!m-0 print:!w-full print:!min-w-0 print:!max-w-full print:!p-[6mm] text-navy font-serif leading-normal relative text-[13px] flex flex-col">
+            {/* A4 Paper Container - Responsive Preview */}
+            <div className="bg-white w-full max-w-[210mm] min-h-screen md:min-h-0 md:my-8 px-4 md:px-[12mm] py-8 md:py-[8mm] shadow-2xl print:shadow-none print:!m-0 print:!w-full print:!min-w-0 print:!max-w-full print:!p-[6mm] text-navy font-serif leading-normal relative text-[12px] md:text-[13px] flex flex-col shrink-0">
 
                 {/* Header */}
-                <header className="flex justify-between items-start border-b border-navy pb-2 mb-2">
+                <header className="flex flex-col md:flex-row justify-between items-start border-b border-navy pb-2 mb-2 gap-2 md:gap-0">
                     <div>
-                        <h1 className="text-2xl font-black uppercase tracking-tighter text-navy leading-none">Empire</h1>
+                        <h1 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-navy leading-none">Empire</h1>
                         <p className="text-gold font-bold uppercase tracking-[0.3em] text-[10px] mt-0.5">Trajes Finos</p>
                     </div>
                     <div className="text-right text-[11px] text-navy/60 font-medium leading-tight">
@@ -76,7 +76,7 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                     {/* 1. Identification */}
                     <section className="mb-2">
                         <h2 className="text-[12px] font-black uppercase text-navy border-l-2 border-gold pl-2 mb-2 tracking-wide">1. Identificação do Locatário</h2>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
                             <p><span className="font-black text-navy/50 text-[11px] uppercase">Nome:</span> <span className="uppercase font-bold">{client.name}</span></p>
                             <p><span className="font-black text-navy/50 text-[11px] uppercase">Documento (CPF):</span> <span className="font-bold">{client.cpf || '___.___.___-__'}</span></p>
                             <p><span className="font-black text-navy/50 text-[11px] uppercase">Telefone:</span> <span className="font-bold">{client.phone}</span></p>
@@ -91,7 +91,7 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                     {client.measurements && (
                         <section className="mb-2">
                             <h2 className="text-[11px] font-bold uppercase text-navy/60 mb-1 pl-2">1.1 Medidas</h2>
-                            <div className="grid grid-cols-5 gap-x-3 gap-y-1 text-[11px] bg-gray-50/50 p-2 rounded border border-gray-100 italic">
+                            <div className="grid grid-cols-3 md:grid-cols-5 gap-x-3 gap-y-1 text-[11px] bg-gray-50/50 p-2 rounded border border-gray-100 italic">
                                 {Object.entries(client.measurements).map(([key, value]) => {
                                     const translations: Record<string, string> = {
                                         height: 'Altura',
@@ -122,17 +122,17 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                     {/* 2. Rental Items */}
                     <section className="mb-3">
                         <h2 className="text-[12px] font-black uppercase text-navy border-l-2 border-gold pl-2 mb-2 tracking-wide">2. Detalhes da Locação</h2>
-                        <div className="flex justify-between mb-2 text-[12px] bg-gray-50 p-3 rounded border border-gray-100">
+                        <div className="grid grid-cols-2 md:flex md:justify-between gap-y-3 mb-2 text-[11px] md:text-[12px] bg-gray-50 p-3 rounded border border-gray-100">
                             <div>
-                                <span className="text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Retirada</span>
+                                <span className="text-[9px] md:text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Retirada</span>
                                 <span className="font-black text-navy">{new Date(contract.startDate).toLocaleDateString('pt-BR')} {contract.startTime || '09:00'}</span>
                             </div>
                             <div>
-                                <span className="text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Devolução</span>
+                                <span className="text-[9px] md:text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Devolução</span>
                                 <span className="font-black text-navy">{new Date(contract.endDate).toLocaleDateString('pt-BR')} {contract.endTime || '18:00'}</span>
                             </div>
-                            <div className="text-right">
-                                <span className="text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Evento</span>
+                            <div className="col-span-2 md:col-span-1 md:text-right border-t md:border-t-0 pt-2 md:pt-0">
+                                <span className="text-[9px] md:text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Evento</span>
                                 <span className="uppercase font-black text-gold">{contract.eventType || '-'}</span>
                             </div>
                         </div>
@@ -216,9 +216,8 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                     </section>
                 </div>
 
-                {/* Signs Section */}
                 <section className="mt-2 pt-2 border-t border-gray-100">
-                    <div className="flex justify-between items-end gap-16">
+                    <div className="flex justify-between items-end gap-4 md:gap-16">
                         <div className="w-1/2 text-center flex flex-col items-center">
                             <div className="h-10 flex items-center justify-center w-full mb-1">
                                 {contract.attendantSignature ? (

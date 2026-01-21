@@ -5,6 +5,8 @@ import { Appointment, Client, AppointmentType } from '../types';
 interface NewAppointmentModalProps {
     isOpen: boolean;
     onClose: () => void;
+    initialDate?: string;
+    initialClientId?: string;
 }
 
 const APPOINTMENT_TYPES: { type: AppointmentType; icon: string; label: string; desc: string }[] = [
@@ -16,43 +18,39 @@ const APPOINTMENT_TYPES: { type: AppointmentType; icon: string; label: string; d
     { type: 'Outro', icon: 'event', label: 'Outro', desc: 'Reunião geral' },
 ];
 
-export default function NewAppointmentModal({ isOpen, onClose }: NewAppointmentModalProps) {
+export default function NewAppointmentModal({ isOpen, onClose, initialDate, initialClientId }: NewAppointmentModalProps) {
     const { clients, addAppointment, addClient } = useApp();
 
     // Form State
-    const [clientId, setClientId] = useState('');
-    const [date, setDate] = useState('');
+    const [clientId, setClientId] = useState(initialClientId || '');
+    const [date, setDate] = useState(initialDate || '');
     const [time, setTime] = useState('');
     const [type, setType] = useState<AppointmentType>('Primeira Visita');
     const [notes, setNotes] = useState('');
 
-    // Quick Client State
-    const [isQuickClientOpen, setIsQuickClientOpen] = useState(false);
-    const [quickClient, setQuickClient] = useState({ name: '', phone: '' });
+    // Update state if props change
+    React.useEffect(() => {
+        if (isOpen) {
+            if (initialDate) setDate(initialDate);
+            if (initialClientId) setClientId(initialClientId);
+        }
+    }, [isOpen, initialDate, initialClientId]);
+
+    // Mode State
+    const [entryMode, setEntryMode] = useState<'search' | 'quick'>(initialClientId ? 'search' : 'quick');
+    const [clientName, setClientName] = useState('');
 
     if (!isOpen) return null;
 
-    const handleQuickClientSave = () => {
-        if (!quickClient.name || !quickClient.phone) return;
-        const newId = `C_${Date.now()}`;
-        const newClientObj: Client = {
-            id: newId,
-            name: quickClient.name,
-            phone: quickClient.phone,
-            email: '',
-        };
-        addClient(newClientObj);
-        setClientId(newId);
-        setIsQuickClientOpen(false);
-        setQuickClient({ name: '', phone: '' });
-    };
-
     const handleSave = () => {
-        if (!clientId || !date || !time) return;
+        if (entryMode === 'search' && !clientId) return;
+        if (entryMode === 'quick' && !clientName) return;
+        if (!date || !time) return;
 
         const newAppointment: Appointment = {
             id: `APT-${Date.now()}`,
-            clientId,
+            clientId: entryMode === 'search' ? clientId : undefined,
+            clientName: entryMode === 'quick' ? clientName : undefined,
             date,
             time,
             type,
@@ -62,6 +60,7 @@ export default function NewAppointmentModal({ isOpen, onClose }: NewAppointmentM
 
         addAppointment(newAppointment);
         setClientId('');
+        setClientName('');
         setDate('');
         setTime('');
         setNotes('');
@@ -77,10 +76,13 @@ export default function NewAppointmentModal({ isOpen, onClose }: NewAppointmentM
             <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 slide-in-from-bottom-5 duration-300">
 
                 {/* Header - Simple Clean */}
-                <div className="relative p-8 pb-4 shrink-0 flex justify-between items-center bg-white">
+                <div className="relative p-8 pb-4 shrink-0 flex justify-between items-center bg-white border-b border-gray-50">
                     <div>
-                        <h2 className="text-2xl font-bold text-navy">Novo Momento</h2>
-                        <p className="text-gray-500 text-sm mt-1">Agende uma experiência incrível para seu cliente.</p>
+                        <h2 className="text-2xl font-black text-navy uppercase tracking-tight">
+                            Novo Agendamento
+                            <span className="text-primary">.</span>
+                        </h2>
+                        <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Defina uma experiência incrível</p>
                     </div>
                     <button onClick={onClose} className="size-10 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-navy transition-all">
                         <span className="material-symbols-outlined">close</span>
@@ -88,39 +90,35 @@ export default function NewAppointmentModal({ isOpen, onClose }: NewAppointmentM
                 </div>
 
                 {/* Content Scrollable Area */}
-                <div className="relative p-8 pt-2 overflow-y-auto custom-scrollbar space-y-8 bg-white">
+                <div className="relative p-8 pt-6 overflow-y-auto custom-scrollbar space-y-8 bg-white">
 
-                    {/* Section 1: Client */}
-                    <div className="space-y-3">
-                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">Cliente VIP</label>
-                        {isQuickClientOpen ? (
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 animate-in fade-in space-y-3">
-                                <input
-                                    className="w-full bg-white border border-gray-200 rounded-lg p-3 text-navy placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                                    placeholder="Nome do Cliente"
-                                    value={quickClient.name}
-                                    onChange={e => setQuickClient(prev => ({ ...prev, name: e.target.value }))}
-                                    autoFocus
-                                />
-                                <div className="flex gap-2">
-                                    <input
-                                        className="w-full bg-white border border-gray-200 rounded-lg p-3 text-navy placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
-                                        placeholder="Telefone"
-                                        value={quickClient.phone}
-                                        onChange={e => setQuickClient(prev => ({ ...prev, phone: e.target.value }))}
-                                    />
-                                    <button onClick={handleQuickClientSave} className="bg-primary hover:bg-primary/90 text-white font-bold px-4 rounded-lg transition-all">
-                                        Salvar
-                                    </button>
-                                </div>
+                    {/* Section 1: Client Selection Mode */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Quem é o Cliente?</label>
+                            <div className="flex bg-gray-100 p-1 rounded-xl">
+                                <button
+                                    onClick={() => setEntryMode('search')}
+                                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'search' ? 'bg-white text-navy shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Buscar
+                                </button>
+                                <button
+                                    onClick={() => setEntryMode('quick')}
+                                    className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${entryMode === 'quick' ? 'bg-white text-navy shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Manual
+                                </button>
                             </div>
-                        ) : (
+                        </div>
+
+                        {entryMode === 'search' ? (
                             <div className="flex gap-3">
                                 <div className="relative flex-1 group">
                                     <select
                                         value={clientId}
                                         onChange={e => setClientId(e.target.value)}
-                                        className="block w-full bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 rounded-xl text-navy text-base font-medium p-3 pr-10 appearance-none cursor-pointer transition-all outline-none focus:bg-white focus:border-primary focus:ring-1 focus:ring-primary"
+                                        className="block w-full bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 rounded-xl text-navy text-sm font-bold p-4 pr-10 appearance-none cursor-pointer transition-all outline-none focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10"
                                     >
                                         <option value="" className="text-gray-400">Selecione o Cliente...</option>
                                         {clients.map(client => (
@@ -131,13 +129,24 @@ export default function NewAppointmentModal({ isOpen, onClose }: NewAppointmentM
                                         <span className="material-symbols-outlined">expand_more</span>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setIsQuickClientOpen(true)}
-                                    className="size-[50px] bg-white border border-gray-200 rounded-xl text-primary hover:bg-gray-50 flex items-center justify-center transition-all"
-                                    title="Novo Registro"
-                                >
-                                    <span className="material-symbols-outlined text-xl">person_add</span>
-                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-300 group-focus-within:text-primary transition-colors">
+                                        <span className="material-symbols-outlined">person</span>
+                                    </div>
+                                    <input
+                                        className="w-full bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 rounded-xl p-4 pl-12 text-navy text-sm font-bold placeholder:text-gray-400 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all"
+                                        placeholder="Nome completo do cliente..."
+                                        value={clientName}
+                                        onChange={e => setClientName(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest bg-gray-50 p-3 rounded-lg border border-dashed border-gray-200 text-center">
+                                    ✨ Agendamento rápido: Não cria registro no CRM
+                                </p>
                             </div>
                         )}
                     </div>
@@ -210,7 +219,7 @@ export default function NewAppointmentModal({ isOpen, onClose }: NewAppointmentM
                     </button>
                     <button
                         onClick={handleSave}
-                        disabled={!clientId || !date || !time}
+                        disabled={(entryMode === 'search' ? !clientId : !clientName) || !date || !time}
                         className="px-8 py-3 bg-primary text-white font-bold rounded-lg shadow-sm hover:bg-primary/90 hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Confirmar

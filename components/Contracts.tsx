@@ -56,11 +56,11 @@ export default function Contracts() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'Ativo': return { bg: 'bg-emerald-500', text: 'text-emerald-500', border: 'border-emerald-200', soft: 'bg-emerald-50' };
-            case 'Agendado': return { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-200', soft: 'bg-blue-50' };
-            case 'Finalizado': return { bg: 'bg-gray-500', text: 'text-gray-500', border: 'border-gray-200', soft: 'bg-gray-100' };
-            case 'Cancelado': return { bg: 'bg-red-500', text: 'text-red-500', border: 'border-red-200', soft: 'bg-red-50' };
-            default: return { bg: 'bg-purple-500', text: 'text-purple-500', border: 'border-purple-200', soft: 'bg-purple-50' };
+            case 'Ativo': return { bg: 'bg-emerald-500', text: 'text-emerald-500', border: 'border-emerald-200', soft: 'bg-emerald-50', shadow: 'shadow-emerald-500/20' };
+            case 'Agendado': return { bg: 'bg-blue-500', text: 'text-blue-500', border: 'border-blue-200', soft: 'bg-blue-50', shadow: 'shadow-blue-500/20' };
+            case 'Finalizado': return { bg: 'bg-gray-500', text: 'text-gray-500', border: 'border-gray-200', soft: 'bg-gray-100', shadow: 'shadow-gray-500/10' };
+            case 'Cancelado': return { bg: 'bg-red-500', text: 'text-red-500', border: 'border-red-200', soft: 'bg-red-50', shadow: 'shadow-red-500/20' };
+            default: return { bg: 'bg-gold', text: 'text-gold', border: 'border-gold/20', soft: 'bg-gold/5', shadow: 'shadow-gold/20' };
         }
     };
 
@@ -127,83 +127,113 @@ export default function Contracts() {
                         <div
                             key={contract.id}
                             onClick={() => setSelectedContract(contract)}
-                            className={`group relative bg-white rounded-[24px] border border-gray-100 p-0 cursor-pointer transition-all duration-300 hover:shadow-lg overflow-hidden ${selectedContract?.id === contract.id ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+                            className={`group relative bg-white rounded-[28px] border border-gray-100 p-0 shadow-sm cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden ${selectedContract?.id === contract.id ? 'ring-2 ring-primary ring-offset-2 scale-[0.99]' : ''}`}
                         >
-                            {/* Left Color Strip */}
-                            <div className="absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-300" style={{ backgroundColor: contractColor }}></div>
+                            {/* Accent Line */}
+                            <div className="absolute left-0 top-0 bottom-0 w-2 transition-all duration-300" style={{ backgroundColor: contractColor }}></div>
 
-                            <div className="p-4 md:p-6 md:pl-8 flex flex-col md:flex-row gap-4 md:gap-6 relative z-10">
-                                {/* Client Info Section */}
-                                <div className="flex items-start gap-4 min-w-[200px]">
-                                    <div className="relative">
-                                        <div className={`size-14 rounded-2xl ${statusColors.soft} flex items-center justify-center shadow-inner`}>
-                                            <span className={`text-xl font-black ${statusColors.text}`}>
-                                                {getInitials(getClientName(contract.clientId))}
-                                            </span>
-                                        </div>
-                                        <div className={`absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-white ${statusColors.bg}`}></div>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Cliente</p>
-                                        <h3 className="text-lg font-black text-navy leading-tight line-clamp-1">{getClientName(contract.clientId)}</h3>
-                                        <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-50 text-gray-500 border border-gray-100">
-                                            #{contract.id.split('-')[2]}
-                                        </span>
-                                        {(!contract.lesseeSignature || !contract.attendantSignature) && (contract.status === 'Agendado' || contract.status === 'Ativo') && (
-                                            <div className="mt-1 flex items-center gap-1 text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 w-fit animate-pulse" title="Assinatura Pendente">
-                                                <span className="material-symbols-outlined text-[10px]">warning</span>
-                                                <span className="text-[9px] font-bold uppercase tracking-wide">Assinar</span>
+                            <div className="p-5 md:p-6 md:pl-10 flex flex-col gap-5 relative z-10">
+                                {/* Top Row: Client & ID */}
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <div className="relative shrink-0">
+                                            <div className={`size-12 md:size-14 rounded-2xl ${statusColors.soft} flex items-center justify-center shadow-inner`}>
+                                                <span className={`text-lg md:text-xl font-black ${statusColors.text}`}>
+                                                    {getInitials(getClientName(contract.clientId))}
+                                                </span>
                                             </div>
-                                        )}
+                                            <div className={`absolute -bottom-1 -right-1 size-4 rounded-full border-2 border-white ${statusColors.bg} ${statusColors.shadow} shadow-lg`}></div>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Dono do Contrato</p>
+                                            <h3 className="text-base md:text-lg font-black text-navy leading-tight truncate">{getClientName(contract.clientId)}</h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-widest bg-gray-50 text-gray-400 border border-gray-100">
+                                                    #{contract.id.split('-')[2]}
+                                                </span>
+                                                {(!contract.lesseeSignature || !contract.attendantSignature) && (contract.status === 'Agendado' || contract.status === 'Ativo') && (
+                                                    <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-100 animate-pulse">
+                                                        Pendente Assinatura
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="hidden sm:block text-right">
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Valor Total</p>
+                                        <p className="text-xl font-black text-navy">R$ {contract.totalValue.toLocaleString('pt-BR')}</p>
                                     </div>
                                 </div>
 
-                                {/* Timeline & Items Section */}
-                                <div className="flex-1 flex flex-col justify-center gap-4">
+                                {/* Middle Row: Items & Timeline */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center border-y border-gray-50 py-5 md:py-0 md:border-none">
                                     {/* Items Preview */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-4">
                                         <div className="flex -space-x-3">
                                             {contract.items.slice(0, 4).map((itemId, i) => (
-                                                <div key={i} className="size-8 rounded-full border-2 border-white bg-gray-100 bg-cover bg-center shadow-sm relative group/item" style={{ backgroundImage: `url('${items.find(it => it.id === itemId)?.img}')` }}>
+                                                <div
+                                                    key={i}
+                                                    className="size-9 rounded-xl border-2 border-white bg-gray-100 bg-cover bg-center shadow-lg shadow-black/5 relative hover:z-20 hover:-translate-y-1 transition-all"
+                                                    style={{ backgroundImage: `url('${items.find(it => it.id === itemId)?.img}')` }}
+                                                >
                                                 </div>
                                             ))}
                                             {contract.items.length > 4 && (
-                                                <div className="size-8 rounded-full border-2 border-white bg-navy text-white flex items-center justify-center text-[10px] font-bold shadow-sm z-10">
+                                                <div className="size-9 rounded-xl border-2 border-white bg-navy text-white flex items-center justify-center text-[10px] font-black shadow-lg z-10">
                                                     +{contract.items.length - 4}
                                                 </div>
                                             )}
                                         </div>
-                                        <p className="text-xs font-medium text-gray-500">
-                                            {contract.items.length} {contract.items.length === 1 ? 'Item' : 'Itens'}
-                                        </p>
+                                        <div className="flex flex-col">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Acervo</p>
+                                            <p className="text-xs font-bold text-navy/70">
+                                                {contract.items.length} {contract.items.length === 1 ? 'Item selecionado' : 'Itens selecionados'}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {/* Timeline */}
-                                    <div className="space-y-1.5">
-                                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                                            <span>{new Date(contract.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}</span>
-                                            <span className={statusColors.text}>{contract.status}</span>
-                                            <span>{new Date(contract.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}</span>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-end text-[9px] font-black uppercase tracking-[0.15em]">
+                                            <div className="text-left">
+                                                <span className="text-gray-400 block mb-0.5">Saída</span>
+                                                <span className="text-navy">{new Date(contract.startDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}</span>
+                                            </div>
+                                            <div className="text-center">
+                                                <span className={`px-2 py-1 rounded-lg ${statusColors.soft} ${statusColors.text} border ${statusColors.border}`}>{contract.status}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-gray-400 block mb-0.5">Retorno</span>
+                                                <span className="text-navy">{new Date(contract.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', timeZone: 'UTC' })}</span>
+                                            </div>
                                         </div>
-                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden p-[1px]">
                                             <div
-                                                className={`h-full rounded-full transition-all duration-1000 ${statusColors.bg}`}
+                                                className={`h-full rounded-full transition-all duration-[1500ms] ${statusColors.bg} ${statusColors.shadow} shadow-lg relative`}
                                                 style={{ width: `${progress}%` }}
-                                            ></div>
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                {/* Price & Action */}
-                                <div className="flex flex-row md:flex-col items-center md:items-end justify-between min-w-0 md:min-w-[100px] border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 border-dashed">
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total</p>
-                                        <p className="text-xl font-black text-navy">R$ {contract.totalValue}</p>
+                                {/* Mobile Footer Row (Price) */}
+                                <div className="flex sm:hidden items-center justify-between pt-1">
+                                    <div>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Total da Reserva</p>
+                                        <p className="text-xl font-black text-navy">R$ {contract.totalValue.toLocaleString('pt-BR')}</p>
                                     </div>
-                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0 duration-300">
-                                        <div className="size-8 rounded-full bg-gray-50 flex items-center justify-center text-navy hover:bg-navy hover:text-white transition-colors">
-                                            <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                                        </div>
+                                    <div className="size-10 rounded-2xl bg-gray-50 flex items-center justify-center text-navy shadow-inner">
+                                        <span className="material-symbols-outlined text-xl">arrow_forward</span>
+                                    </div>
+                                </div>
+
+                                {/* Desktop Action indicator */}
+                                <div className="hidden sm:flex absolute right-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                                    <div className="size-12 rounded-2xl bg-navy text-white flex items-center justify-center shadow-xl shadow-navy/20">
+                                        <span className="material-symbols-outlined">arrow_forward</span>
                                     </div>
                                 </div>
                             </div>

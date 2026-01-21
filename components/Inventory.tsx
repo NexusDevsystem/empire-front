@@ -75,32 +75,32 @@ export default function Inventory() {
 
     return (
         <div className="flex flex-col gap-8 pb-20">
-            <div className="flex flex-col md:flex-row justify-between items-end gap-4">
-                <div className="flex flex-col gap-2">
-                    <h1 className="text-navy text-3xl md:text-4xl font-black leading-tight tracking-tight">Vestuário</h1>
-                    <p className="text-gray-500 text-base font-normal max-w-2xl">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="flex flex-col gap-1 md:gap-2">
+                    <h1 className="text-2xl md:text-4xl font-black text-navy leading-tight tracking-tight">Vestuário</h1>
+                    <p className="text-gray-500 text-xs md:text-sm max-w-2xl">
                         Gerencie o ciclo de vida, disponibilidade e manutenção dos ativos de luxo.
                     </p>
                 </div>
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center justify-center gap-2 rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold shadow-lg hover:bg-primary/90 transition-colors shrink-0"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 rounded-xl h-12 px-8 bg-gold text-navy text-xs md:text-sm font-black uppercase tracking-widest shadow-lg shadow-gold/20 hover:bg-gold/90 transition-all active:scale-95 shrink-0"
                 >
-                    <span className="material-symbols-outlined text-xl">add</span>
+                    <span className="material-symbols-outlined text-lg">add</span>
                     <span>Novo Item</span>
                 </button>
             </div>
 
             {/* Filter */}
-            <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm">
+            <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="material-symbols-outlined text-gray-400 group-focus-within:text-primary transition-colors">search</span>
+                        <span className="material-symbols-outlined text-gray-400 group-focus-within:text-gold transition-colors">search</span>
                     </div>
                     <input
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-full pl-10 pr-3 py-2.5 border-none rounded-lg bg-gray-50 text-navy placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                        className="block w-full h-12 pl-10 pr-3 py-2.5 border-none rounded-xl bg-gray-50 text-navy placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-gold/5 focus:border-gold transition-all font-medium text-sm"
                         placeholder="Buscar por nome ou tipo..."
                     />
                 </div>

@@ -255,83 +255,89 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
             <div className="bg-white w-full h-full md:w-full md:max-w-6xl md:h-[90vh] md:rounded-2xl rounded-none shadow-2xl overflow-hidden flex flex-col border border-gray-200">
 
                 {/* Header - Glass/Premium feel */}
-                <div className="relative h-auto min-h-[160px] md:h-48 shrink-0 overflow-hidden bg-navy pb-4 md:pb-0">
+                <div className="relative h-auto min-h-[180px] md:h-48 shrink-0 overflow-hidden bg-navy">
                     <div className="absolute inset-0 bg-cover bg-center opacity-50 blur-xl scale-110" style={{ backgroundImage: `url('${product.img}')` }}></div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
 
-                    <div className="absolute inset-x-0 bottom-0 p-4 md:p-8 flex flex-col md:flex-row justify-between items-end gap-4">
+                    <div className="relative p-6 md:p-8 flex flex-col md:flex-row justify-between items-end gap-4 h-full">
                         <div className="flex flex-row items-end gap-4 md:gap-6 w-full">
-                            <div className="size-24 md:size-32 rounded-xl bg-white p-1 shadow-2xl skew-y-1 transform origin-bottom-left shrink-0">
-                                <div className="h-full w-full rounded-lg bg-cover bg-center" style={{ backgroundImage: `url('${product.img}')` }}></div>
+                            <div className="size-24 md:size-32 rounded-2xl bg-white p-1 shadow-2xl skew-y-1 transform origin-bottom-left shrink-0">
+                                <div className="h-full w-full rounded-xl bg-cover bg-center" style={{ backgroundImage: `url('${product.img}')` }}></div>
                             </div>
                             <div className="mb-1 md:mb-2 min-w-0 flex-1">
-                                <span className="px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/10 text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm">
+                                <span className="px-2 md:px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-white border border-white/10 text-[10px] md:text-xs font-bold uppercase tracking-widest shadow-sm">
                                     {product.type}
                                 </span>
-                                <h2 className="text-2xl md:text-4xl font-black text-white mt-2 md:mt-3 tracking-tight shadow-black drop-shadow-md truncate">{product.name}</h2>
-                                <div className="flex items-center gap-2 md:gap-4 text-gray-300 mt-1 font-medium text-xs md:text-sm">
-                                    <p className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] md:text-[16px]">straighten</span> {product.size}</p>
+                                <h2 className="text-xl md:text-3xl font-black text-white mt-2 md:mt-3 tracking-tight shadow-black drop-shadow-md line-clamp-2">{product.name}</h2>
+                                <div className="flex items-center gap-2 md:gap-4 text-gray-300 mt-1 font-medium text-xs md:text-sm uppercase tracking-wider">
+                                    <p className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] md:text-[16px]">straighten</span> Tam. {product.size}</p>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 md:gap-3 text-white mb-0 md:mb-2 absolute top-2 right-2 md:static">
-                            <button onClick={onClose} className="p-2 text-white/70 hover:text-white transition-all bg-black/20 rounded-full md:bg-transparent">
-                                <span className="material-symbols-outlined text-2xl md:text-3xl">close</span>
+
+                        {/* Top Controls Overlay */}
+                        <div className="absolute top-4 right-4 flex flex-col items-end gap-3 z-30">
+                            <button onClick={onClose} className="size-10 flex items-center justify-center text-white/90 hover:text-white transition-all bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full border border-white/10">
+                                <span className="material-symbols-outlined text-2xl">close</span>
                             </button>
-                            <div className="text-right hidden md:block">
-                                <p className="text-3xl font-black leading-none">
-                                    {items.reduce((sum, i) => sum + (i.totalQuantity || 1), 0)}
-                                </p>
-                                <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Total no Estoque</p>
-                            </div>
+                        </div>
+
+                        {/* Inventory Stat (Desktop) */}
+                        <div className="hidden md:block text-right text-white mb-2">
+                            <p className="text-4xl font-black leading-none tracking-tighter">
+                                {items.reduce((sum, i) => sum + (i.totalQuantity || 1), 0)}
+                            </p>
+                            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Acervo Total</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Toolbar */}
-                <div className="px-8 py-4 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
-                    <div className="flex items-center gap-4">
-                        <h3 className="text-navy font-bold text-lg">Visão Geral do Acervo</h3>
+                <div className="px-4 md:px-8 py-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white shrink-0 gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                        <h3 className="text-navy font-bold text-base md:text-lg whitespace-nowrap">Visão Geral do Acervo</h3>
 
                         {/* View Toggle */}
-                        <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
+                        <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200 w-full sm:w-auto">
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'list' ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-navy'}`}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${viewMode === 'list' ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-navy'}`}
                             >
-                                <span className="material-symbols-outlined text-[16px]">list</span>
-                                Lista
+                                <span className="material-symbols-outlined text-[18px]">list</span>
+                                <span>Lista</span>
                             </button>
                             <button
                                 onClick={() => setViewMode('calendar')}
-                                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-navy'}`}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${viewMode === 'calendar' ? 'bg-white text-navy shadow-sm' : 'text-gray-500 hover:text-navy'}`}
                             >
-                                <span className="material-symbols-outlined text-[16px]">calendar_month</span>
-                                Calendário
+                                <span className="material-symbols-outlined text-[18px]">calendar_month</span>
+                                <span>Calendário</span>
                             </button>
                         </div>
                     </div>
 
-                    {viewMode === 'calendar' && (
-                        <div className="flex items-center gap-4 bg-gray-50 px-3 py-1 rounded-lg border border-gray-200">
-                            <button onClick={() => changeMonth(-1)} className="size-8 flex items-center justify-center hover:bg-white hover:shadow rounded text-gray-600">
-                                <span className="material-symbols-outlined">chevron_left</span>
-                            </button>
-                            <span className="text-sm font-bold text-navy w-32 text-center">
-                                {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                            </span>
-                            <button onClick={() => changeMonth(1)} className="size-8 flex items-center justify-center hover:bg-white hover:shadow rounded text-gray-600">
-                                <span className="material-symbols-outlined">chevron_right</span>
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+                        {viewMode === 'calendar' && (
+                            <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200 flex-1 sm:flex-none justify-between sm:justify-start">
+                                <button onClick={() => changeMonth(-1)} className="size-8 flex items-center justify-center hover:bg-white hover:shadow rounded text-gray-600">
+                                    <span className="material-symbols-outlined text-lg">chevron_left</span>
+                                </button>
+                                <span className="text-[11px] md:text-xs font-bold text-navy w-24 md:w-28 text-center uppercase tracking-wider">
+                                    {currentDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                                </span>
+                                <button onClick={() => changeMonth(1)} className="size-8 flex items-center justify-center hover:bg-white hover:shadow rounded text-gray-600">
+                                    <span className="material-symbols-outlined text-lg">chevron_right</span>
+                                </button>
+                            </div>
+                        )}
 
-                    {viewMode === 'list' && (
-                        <button onClick={handleAddUnit} className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
-                            <span className="material-symbols-outlined text-xl">add_circle</span>
-                            Adicionar Unidade
-                        </button>
-                    )}
+                        {viewMode === 'list' && (
+                            <button onClick={handleAddUnit} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-xs md:text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
+                                <span className="material-symbols-outlined text-lg md:text-xl">add_circle</span>
+                                <span>Adicionar Unidade</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Main Content */}
@@ -639,16 +645,16 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
                 </div>
 
                 {/* Footer Legend */}
-                <div className="p-4 border-t border-gray-100 bg-white text-xs flex gap-6 text-gray-500 justify-center">
+                <div className="p-4 border-t border-gray-100 bg-white text-[10px] md:text-xs flex flex-wrap gap-x-6 gap-y-2 text-gray-500 justify-center">
                     <div className="flex items-center gap-1.5">
-                        <span className="px-1.5 py-0.5 rounded bg-green-100 border border-green-200 text-green-700 text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-600 font-bold">
                             {getDailyStats(new Date()).availableCount}
                         </span>
-                        Disponíveis
+                        <span className="uppercase font-bold tracking-wider">Disponíveis</span>
                     </div>
-                    <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-purple-600"></span> No Atelier</div>
-                    <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-cyan-500"></span> Lavanderia</div>
-                    <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-orange-500"></span> Devolução</div>
+                    <div className="flex items-center gap-1.5"><div className="size-3 rounded-md bg-purple-600 shadow-sm"></div> <span className="uppercase font-bold tracking-wider">No Atelier</span></div>
+                    <div className="flex items-center gap-1.5"><div className="size-3 rounded-md bg-cyan-500 shadow-sm"></div> <span className="uppercase font-bold tracking-wider">Lavanderia</span></div>
+                    <div className="flex items-center gap-1.5"><div className="size-3 rounded-md bg-orange-500 shadow-sm"></div> <span className="uppercase font-bold tracking-wider">Devolução</span></div>
                 </div>
             </div>
         </div>

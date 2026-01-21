@@ -86,6 +86,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            console.log("File selected:", file.name);
             const reader = new FileReader();
             reader.onload = (event) => {
                 const img = new Image();
@@ -115,7 +116,8 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
                     ctx?.drawImage(img, 0, 0, width, height);
 
                     const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7); // 70% quality
-                    setNewItem({ ...newItem, img: compressedDataUrl });
+                    console.log("Image compressed, updating state...");
+                    setNewItem(prev => ({ ...prev, img: compressedDataUrl }));
                 };
                 img.src = event.target?.result as string;
             };
@@ -138,7 +140,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
     return (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-200">
             {step === 'details' && (
-                <div className="bg-white w-full h-[100dvh] md:h-auto md:max-h-[90vh] md:w-full md:max-w-3xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col md:animate-in md:slide-in-from-bottom-4 duration-300 rounded-none relative">
+                <div className="bg-white w-full h-[100dvh] md:h-auto md:max-h-[90vh] md:w-full md:max-w-3xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col md:animate-in md:slide-in-from-bottom-4 duration-300 rounded-none">
                     {/* Header */}
                     <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                         <div>
@@ -151,7 +153,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
                     </div>
 
                     {/* Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 pt-6 pb-24 md:pb-8">
+                    <div className="flex-1 overflow-y-auto p-4 md:p-8 pt-6 pb-6">
                         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
 
                             {/* Left Column: Image Area */}
@@ -349,7 +351,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
                     </div>
 
                     {/* Footer - Apple Style */}
-                    <div className="absolute bottom-0 left-0 right-0 px-4 md:px-8 py-4 md:py-6 border-t border-gray-100 bg-white flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4 z-20">
+                    <div className="shrink-0 px-4 md:px-8 py-4 md:py-6 border-t border-gray-100 bg-white flex flex-col md:flex-row justify-between items-center gap-3 md:gap-4">
                         <div className="hidden md:block">
                             {newItem.name ? (
                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">

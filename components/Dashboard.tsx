@@ -203,7 +203,7 @@ export default function Dashboard() {
     <div className="pb-20 animate-in fade-in duration-700">
 
       {/* Header */}
-      <div className="sticky top-0 z-40 mb-8 -mx-8 px-8 py-4 bg-gray-50/80 backdrop-blur-xl border-b border-gray-200/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all">
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 transition-all">
         <div>
           <h1 className="text-4xl font-black text-navy tracking-tighter">
             DASHBOARD

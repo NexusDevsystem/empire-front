@@ -224,7 +224,7 @@ export default function Financial() {
     return (
         <div className="pb-10 md:pb-20 animate-in fade-in duration-700">
             {/* Header */}
-            <div className="sticky top-0 z-40 mb-6 md:mb-8 -mx-4 md:-mx-8 px-4 md:px-8 py-3 md:py-4 bg-gray-50/80 backdrop-blur-xl border-b border-gray-200/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all">
+            <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all">
                 <div>
                     <h1 className="text-2xl md:text-4xl font-black text-navy tracking-tighter">
                         FINANCEIRO

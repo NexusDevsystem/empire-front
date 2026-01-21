@@ -66,9 +66,6 @@ export default function Atelier() {
             </div>
             <div className="flex-1 p-5 flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded tracking-wide font-mono">{item.sku}</span>
-                </div>
                 <h3 className="text-lg font-bold text-navy">{item.name}</h3>
                 <p className="text-sm text-gray-500">{item.loc}</p>
               </div>

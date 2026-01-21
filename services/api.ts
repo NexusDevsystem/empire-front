@@ -128,6 +128,14 @@ export const transactionsAPI = {
     getAll: async () => {
         const { data } = await api.get('/transactions');
         return data;
+    },
+    create: async (transaction: any) => {
+        const { data } = await api.post('/transactions', transaction);
+        return data;
+    },
+    delete: async (id: string) => {
+        const { data } = await api.delete(`/transactions/${id}`);
+        return data;
     }
 };
 

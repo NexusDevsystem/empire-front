@@ -137,31 +137,31 @@ export default function Logistics() {
             : ['Devolução', 'Na Lavanderia', 'No Atelier', 'Disponível'].includes(item.status);
 
         return (
-            <div key={`${contract.id}-${item.id}`} className={`bg-white p-4 rounded-xl border ${isDone ? 'border-green-200 bg-green-50/50' : 'border-gray-200'} shadow-sm flex items-center justify-between group transition-all`}>
-                <div className="flex gap-4 items-center">
-                    <div className="size-14 rounded-lg bg-cover bg-center border border-gray-100 shadow-sm" style={{ backgroundImage: `url('${item.img}')` }}></div>
-                    <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{contract.eventType}</span>
+            <div key={`${contract.id}-${item.id}`} className={`bg-white p-3 md:p-4 rounded-2xl border ${isDone ? 'border-green-100 bg-green-50/30' : 'border-gray-100'} shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group transition-all`}>
+                <div className="flex gap-3 md:gap-4 items-center w-full sm:w-auto">
+                    <div className="size-14 md:size-16 rounded-xl bg-cover bg-center border border-gray-100 shadow-sm shrink-0" style={{ backgroundImage: `url('${item.img}')` }}></div>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{contract.eventType}</span>
                         </div>
-                        <p className="font-bold text-navy leading-tight">{item.name}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">Contrato #{contract.id}</p>
+                        <p className="font-black text-navy leading-tight truncate">{item.name}</p>
+                        <p className="text-[10px] md:text-xs text-gray-400 mt-1 font-bold">Contrato #{contract.id.split('-')[2]}</p>
                     </div>
                 </div>
 
                 {isDone ? (
-                    <div className="flex items-center gap-2 text-green-600 bg-green-100 px-3 py-1.5 rounded-lg">
+                    <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-xl w-full sm:w-auto justify-center">
                         <span className="material-symbols-outlined text-lg">check_circle</span>
-                        <span className="text-xs font-bold uppercase">Concluído</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Concluído</span>
                     </div>
                 ) : (
                     <button
                         onClick={() => action === 'pickup' ? handleConfirmPickup(item.id, item.name, contract.id) : handleReceiveItem(item.id, item.name, contract.id)}
                         className={`
-                            px-4 py-2 rounded-lg font-bold text-sm shadow-sm transition-all flex items-center gap-2
+                            px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95
                             ${action === 'pickup'
-                                ? 'bg-navy text-white hover:bg-primary'
-                                : 'bg-orange-500 text-white hover:bg-orange-600'}
+                                ? 'bg-navy text-white shadow-navy/20 hover:bg-primary'
+                                : 'bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600'}
                         `}
                     >
                         <span className="material-symbols-outlined text-lg">
@@ -187,18 +187,18 @@ export default function Logistics() {
                         <p className="text-gray-500 text-xs md:text-sm mt-1">Gestão de fluxo diário e processamento de itens.</p>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 md:flex md:gap-4">
-                        <div className="flex flex-col items-center md:items-end px-3 md:px-4 py-2 bg-blue-50 rounded-xl border border-blue-100">
-                            <span className="text-[9px] md:text-[10px] font-bold uppercase text-blue-400 tracking-wider text-center">Saídas</span>
-                            <span className="text-xl md:text-2xl font-black text-blue-700">{todayPickups.length}</span>
+                    <div className="grid grid-cols-3 gap-3">
+                        <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                            <span className="text-[9px] md:text-[10px] font-black uppercase text-blue-400 tracking-[0.15em] mb-1">Saídas</span>
+                            <span className="text-xl md:text-3xl font-black text-navy">{todayPickups.length}</span>
                         </div>
-                        <div className="flex flex-col items-center md:items-end px-3 md:px-4 py-2 bg-orange-50 rounded-xl border border-orange-100">
-                            <span className="text-[9px] md:text-[10px] font-bold uppercase text-orange-400 tracking-wider text-center">Retornos</span>
-                            <span className="text-xl md:text-2xl font-black text-orange-700">{todayReturns.length}</span>
+                        <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-orange-50/50 rounded-2xl border border-orange-100/50">
+                            <span className="text-[9px] md:text-[10px] font-black uppercase text-orange-400 tracking-[0.15em] mb-1">Retornos</span>
+                            <span className="text-xl md:text-3xl font-black text-navy">{todayReturns.length}</span>
                         </div>
-                        <div className="flex flex-col items-center md:items-end px-3 md:px-4 py-2 bg-purple-50 rounded-xl border border-purple-100">
-                            <span className="text-[9px] md:text-[10px] font-bold uppercase text-purple-400 tracking-wider text-center">Processo</span>
-                            <span className="text-xl md:text-2xl font-black text-purple-700">
+                        <div className="flex flex-col items-center justify-center p-3 md:p-4 bg-purple-50/50 rounded-2xl border border-purple-100/50">
+                            <span className="text-[9px] md:text-[10px] font-black uppercase text-purple-400 tracking-[0.15em] mb-1">Processo</span>
+                            <span className="text-xl md:text-3xl font-black text-navy">
                                 {items.filter(i => ['Devolução', 'Na Lavanderia', 'No Atelier'].includes(i.status)).length}
                             </span>
                         </div>
@@ -258,7 +258,7 @@ export default function Logistics() {
                 {/* Processing Hub Section */}
                 <div className="flex-1 flex flex-col bg-gray-50">
                     {/* Tabs */}
-                    <div className="flex border-b border-gray-200 bg-white px-2 md:px-6 pt-2 md:pt-4 overflow-x-auto no-scrollbar">
+                    <div className="flex border-b border-gray-100 bg-white px-4 md:px-6 pt-2 md:pt-4 overflow-x-auto no-scrollbar gap-2">
                         {[
                             { id: 'triagem', label: 'Triagem', icon: 'inbox', color: 'orange' },
                             { id: 'lavanderia', label: 'Lavanderia', icon: 'local_laundry_service', color: 'cyan' },
@@ -268,15 +268,15 @@ export default function Logistics() {
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
                                 className={`
-                                    flex items-center gap-1.5 md:gap-2 px-3 md:px-6 py-2.5 md:py-3 border-b-2 font-bold text-xs md:text-sm transition-all whitespace-nowrap
+                                    flex items-center gap-2 px-4 md:px-6 py-3 border-b-2 font-black text-[10px] md:text-xs tracking-widest uppercase transition-all whitespace-nowrap rounded-t-xl
                                     ${activeTab === tab.id
                                         ? `border-${tab.color}-500 text-${tab.color}-600 bg-${tab.color}-50/30`
                                         : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'}
                                 `}
                             >
-                                <span className={`material-symbols-outlined text-base md:text-lg ${activeTab === tab.id ? '' : 'opacity-70'}`}>{tab.icon}</span>
-                                <span className="hidden sm:inline">{tab.label}</span>
-                                <span className={`px-1.5 py-0.5 rounded text-[9px] md:text-[10px] bg-gray-100 text-gray-500 font-bold`}>
+                                <span className={`material-symbols-outlined text-lg ${activeTab === tab.id ? '' : 'opacity-70'}`}>{tab.icon}</span>
+                                <span className="">{tab.label}</span>
+                                <span className={`ml-1 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === tab.id ? `bg-${tab.color}-100/50 text-${tab.color}-700` : 'bg-gray-100 text-gray-500'} font-black`}>
                                     {items.filter(i => {
                                         if (tab.id === 'triagem') return i.status === 'Devolução';
                                         if (tab.id === 'lavanderia') return i.status === 'Na Lavanderia';
@@ -306,48 +306,48 @@ export default function Logistics() {
                         <div className="grid grid-cols-1 gap-3">
                             {processingItems.map(item => (
                                 <div key={item.id} className="bg-white p-3 md:p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3 group">
-                                    <div className="flex gap-3 items-center">
-                                        <div className="size-14 md:size-16 rounded-lg bg-cover bg-center border border-gray-100 shrink-0" style={{ backgroundImage: `url('${item.img}')` }}></div>
+                                    <div className="flex gap-4 items-center">
+                                        <div className="size-16 md:size-20 rounded-2xl bg-cover bg-center border border-gray-100 shrink-0 shadow-sm" style={{ backgroundImage: `url('${item.img}')` }}></div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-1">
-                                                <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500">
+                                                <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-gray-50 text-gray-400 border border-gray-100">
                                                     #{item.id.slice(-4)}
                                                 </span>
                                             </div>
-                                            <p className="font-bold text-navy text-sm md:text-base truncate">{item.name}</p>
-                                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                                <span className="material-symbols-outlined text-[14px]">location_on</span>
+                                            <p className="font-black text-navy text-base md:text-lg truncate">{item.name}</p>
+                                            <p className="text-[10px] md:text-xs text-gray-400 mt-1 flex items-center gap-1 font-bold">
+                                                <span className="material-symbols-outlined text-base">location_on</span>
                                                 {item.status}
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Action Buttons based on Tab */}
-                                    <div className="flex gap-2 w-full">
+                                    <div className="flex flex-wrap gap-2 w-full">
                                         {activeTab === 'triagem' && (
                                             <>
                                                 <button
                                                     onClick={() => handleMoveTo(item.id, 'Na Lavanderia', 'cyan', 'Lavanderia')}
-                                                    className="flex-1 px-3 py-2.5 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                                                    className="flex-1 min-w-[100px] px-3 py-3 bg-cyan-50 text-cyan-700 hover:bg-cyan-100 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-cyan-100 active:scale-95"
                                                     title="Enviar para Lavanderia"
                                                 >
-                                                    <span className="material-symbols-outlined text-base">local_laundry_service</span>
+                                                    <span className="material-symbols-outlined text-lg">local_laundry_service</span>
                                                     <span>Lavar</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleMoveTo(item.id, 'No Atelier', 'purple', 'Atelier')}
-                                                    className="flex-1 px-3 py-2.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                                                    className="flex-1 min-w-[100px] px-3 py-3 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-purple-100 active:scale-95"
                                                     title="Enviar para Manutenção"
                                                 >
-                                                    <span className="material-symbols-outlined text-base">content_cut</span>
+                                                    <span className="material-symbols-outlined text-lg">content_cut</span>
                                                     <span>Reparar</span>
                                                 </button>
                                                 <button
                                                     onClick={() => handleRestock(item.id)}
-                                                    className="flex-1 px-3 py-2.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                                                    className="flex-1 min-w-[100px] px-3 py-3 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-emerald-100 active:scale-95"
                                                     title="Devolver ao Estoque"
                                                 >
-                                                    <span className="material-symbols-outlined text-base">check</span>
+                                                    <span className="material-symbols-outlined text-lg">check_circle</span>
                                                     <span>Liberar</span>
                                                 </button>
                                             </>
@@ -356,9 +356,9 @@ export default function Logistics() {
                                         {activeTab === 'lavanderia' && (
                                             <button
                                                 onClick={() => handleRestock(item.id)}
-                                                className="w-full px-4 py-2.5 bg-green-600 text-white hover:bg-green-700 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
+                                                className="w-full px-4 py-3.5 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
                                             >
-                                                <span className="material-symbols-outlined text-base">dry_cleaning</span>
+                                                <span className="material-symbols-outlined text-lg">dry_cleaning</span>
                                                 Pronto / Limpo
                                             </button>
                                         )}
@@ -366,9 +366,9 @@ export default function Logistics() {
                                         {activeTab === 'atelier' && (
                                             <button
                                                 onClick={() => handleRestock(item.id)}
-                                                className="w-full px-4 py-2.5 bg-green-600 text-white hover:bg-green-700 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
+                                                className="w-full px-4 py-3.5 bg-purple-500 text-white hover:bg-purple-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-purple-500/20 active:scale-95"
                                             >
-                                                <span className="material-symbols-outlined text-base">check_circle</span>
+                                                <span className="material-symbols-outlined text-lg">check_circle</span>
                                                 Pronto / Reparado
                                             </button>
                                         )}

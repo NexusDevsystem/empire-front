@@ -116,7 +116,8 @@ export type AppointmentType = 'Primeira Visita' | 'Prova de Traje' | 'Retirada' 
 
 export interface Appointment {
     id: string;
-    clientId: string;
+    clientId?: string;
+    clientName?: string;
     contractId?: string; // Optional, can be a pre-sale visit
     date: string; // YYYY-MM-DD
     time: string; // HH:mm

@@ -104,33 +104,36 @@ export default function Clients() {
 
     return (
         <div className="flex flex-col gap-6 pb-10">
-            <div className="flex flex-wrap justify-between items-end gap-4 mb-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
                 <div>
-                    <h1 className="text-navy text-3xl font-black leading-tight tracking-tight">Clientes / CRM</h1>
-                    <p className="text-gray-500 text-sm">Gerencie o relacionamento e histórico dos clientes.</p>
+                    <h1 className="text-2xl md:text-3xl font-black text-navy leading-tight tracking-tight">Clientes / CRM</h1>
+                    <p className="text-gray-500 text-xs md:text-sm">Gerencie o relacionamento e histórico dos clientes.</p>
                 </div>
                 <button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center justify-center gap-2 rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold shadow-lg hover:bg-blue-700 transition-colors"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 rounded-xl h-12 px-8 bg-primary text-white text-xs md:text-sm font-black uppercase tracking-widest shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all active:scale-95"
                 >
-                    <span className="material-symbols-outlined text-xl">person_add</span>
+                    <span className="material-symbols-outlined text-lg">person_add</span>
                     <span>Novo Cliente</span>
                 </button>
             </div>
 
             {/* Search Bar */}
-            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex gap-4">
+            <div className="bg-white p-3 md:p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 material-symbols-outlined">search</span>
                     <input
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-11 pl-10 pr-4 bg-bg-light border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-navy placeholder:text-gray-400"
+                        className="w-full h-12 pl-10 pr-4 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all text-navy placeholder:text-gray-400 font-medium"
                         placeholder="Buscar cliente por nome ou email..."
                     />
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="h-11 px-4 rounded-lg border border-gray-200 text-gray-600 font-bold hover:bg-gray-50">Filtros</button>
+                    <button className="h-12 flex-1 sm:flex-none px-6 rounded-xl border border-gray-100 text-gray-500 text-xs font-black uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+                        <span className="material-symbols-outlined text-lg">tune</span>
+                        Filtros
+                    </button>
                 </div>
             </div>
 
@@ -220,25 +223,25 @@ export default function Clients() {
                         </div>
 
                         {/* Profile Info */}
-                        <div className="px-8 -mt-20 relative z-20 pb-12">
-                            <div className="flex justify-between items-end mb-6">
-                                <div className="size-36 rounded-3xl bg-white p-1.5 shadow-xl">
+                        <div className="px-6 md:px-8 -mt-16 md:-mt-20 relative z-20 pb-12">
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
+                                <div className="size-28 md:size-36 rounded-3xl bg-white p-1.5 shadow-xl shrink-0">
                                     {selectedClient.img ? (
                                         <div className="w-full h-full rounded-2xl bg-cover bg-center border border-gray-100" style={{ backgroundImage: `url('${selectedClient.img}')` }}></div>
                                     ) : (
-                                        <div className="w-full h-full rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-4xl font-black text-gray-400 border border-gray-100 select-none">
+                                        <div className="w-full h-full rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-3xl md:text-4xl font-black text-gray-400 border border-gray-100 select-none">
                                             {selectedClient.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()}
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex gap-2 mb-2">
-                                    <a href={`https://wa.me/55${selectedClient.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow-lg hover:shadow-green-500/30 transition-all text-sm">
+                                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                                    <a href={`https://wa.me/55${selectedClient.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-green-500 hover:bg-green-600 text-white font-bold rounded-xl shadow-lg hover:shadow-green-500/30 transition-all text-sm">
                                         <span className="material-symbols-outlined text-lg">chat</span> WhatsApp
                                     </a>
-                                    <button onClick={() => handleEdit(selectedClient)} className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-50 transition-all text-sm shadow-sm">
+                                    <button onClick={() => handleEdit(selectedClient)} className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-all text-sm shadow-sm">
                                         <span className="material-symbols-outlined text-lg">edit</span> Editar
                                     </button>
-                                    <button onClick={() => handleDeleteClick(selectedClient.id)} className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-100 text-red-600 font-bold rounded-lg hover:bg-red-100 transition-all text-sm shadow-sm">
+                                    <button onClick={() => handleDeleteClick(selectedClient.id)} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 border border-red-100 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-all text-sm shadow-sm">
                                         <span className="material-symbols-outlined text-lg">delete</span>
                                     </button>
                                 </div>

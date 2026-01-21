@@ -128,6 +128,18 @@ const mapClientFromDB = (db: any): Client => ({
     img: ''
 });
 
+const mapAppointmentFromDB = (db: any): Appointment => ({
+    id: db.id || db._id,
+    clientId: db.clientId,
+    clientName: db.clientName,
+    contractId: db.contractId,
+    date: db.date ? (typeof db.date === 'string' ? db.date.split('T')[0] : new Date(db.date).toISOString().split('T')[0]) : '',
+    time: db.time,
+    type: db.type,
+    notes: db.notes,
+    status: db.status
+});
+
 const mapClientToDB = (client: Client) => ({
     name: client.name,
     email: client.email,
@@ -151,7 +163,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
-    const [currentView, setCurrentView] = useState('dashboard');
+    const [currentView, setCurrentView] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('empire_trajes_last_view') || 'dashboard';
+        }
+        return 'dashboard';
+    });
     const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
     const [showWizard, setShowWizard] = useState(false);
     const [user, setUser] = useState<AuthUser | null>(null);
@@ -171,7 +188,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const openWizard = () => setShowWizard(true);
     const closeWizard = () => setShowWizard(false);
-    const navigateTo = (view: string) => setCurrentView(view);
+    const navigateTo = (view: string) => {
+        setCurrentView(view);
+        localStorage.setItem('empire_trajes_last_view', view);
+    };
 
     // Load data on mount
     useEffect(() => {
@@ -197,18 +217,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const loadData = async () => {
         try {
-            const [itemsData, clientsData, employeesData, contractsData, appointmentsData] = await Promise.all([
+            const [itemsData, clientsData, employeesData, contractsData, appointmentsData, transactionsData] = await Promise.all([
                 itemsAPI.getAll(),
                 clientsAPI.getAll(),
                 employeesAPI.getAll(),
                 contractsAPI.getAll(),
-                appointmentsAPI.getAll()
+                appointmentsAPI.getAll(),
+                transactionsAPI.getAll()
             ]);
 
             setItems(itemsData.map(mapItemFromDB));
             setClients(clientsData.map(mapClientFromDB));
             setContracts(contractsData);
-            setAppointments(appointmentsData);
+            setAppointments(appointmentsData.map(mapAppointmentFromDB));
+            setTransactions(transactionsData);
 
             // Map employees
             setEmployees(employeesData.map((e: any) => ({
@@ -261,11 +283,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const signOut = async () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('empire_trajes_last_view');
         setUser(null);
         setProfile(null);
         setItems([]);
         setClients([]);
         setContracts([]);
+        setCurrentView('dashboard');
     };
 
     // Items
@@ -359,12 +383,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Appointments
     const addAppointment = async (appointment: Appointment) => {
         const saved = await appointmentsAPI.create(appointment);
-        setAppointments(prev => [...prev, saved]);
+        setAppointments(prev => [...prev, mapAppointmentFromDB(saved)]);
     };
 
     const updateAppointment = async (appointment: Appointment) => {
         const saved = await appointmentsAPI.update(appointment.id, appointment);
-        setAppointments(prev => prev.map(a => a.id === appointment.id ? saved : a));
+        setAppointments(prev => prev.map(a => a.id === appointment.id ? mapAppointmentFromDB(saved) : a));
     };
 
     const deleteAppointment = async (appointmentId: string) => {
@@ -374,10 +398,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Transactions (placeholder)
     const addTransaction = async (transaction: Transaction) => {
-        setTransactions(prev => [...prev, transaction]);
+        const saved = await transactionsAPI.create(transaction);
+        setTransactions(prev => [saved, ...prev]);
     };
 
     const deleteTransaction = async (transactionId: string) => {
+        await transactionsAPI.delete(transactionId);
         setTransactions(prev => prev.filter(t => t.id !== transactionId));
     };
 

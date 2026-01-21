@@ -138,6 +138,10 @@ export default function Agenda() {
         return assignments;
     }, [calendarContracts]);
 
+    const handleAddApptClick = () => {
+        setIsApptModal(true);
+    };
+
     const renderDayDetails = () => (
         <>
             {/* Drawer Header - Gradient & Date */}
@@ -186,6 +190,15 @@ export default function Agenda() {
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-1">Locações</p>
                     </div>
                 </div>
+
+                {/* New Appointment Button */}
+                <button
+                    onClick={handleAddApptClick}
+                    className="w-full py-4 bg-navy text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-navy/20 hover:bg-primary transition-all flex items-center justify-center gap-3 active:scale-95"
+                >
+                    <span className="material-symbols-outlined text-lg">add_task</span>
+                    Novo Agendamento
+                </button>
 
                 {/* 2. Appointments Section */}
                 <div>
@@ -247,7 +260,9 @@ export default function Agenda() {
 
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
-                                                        <h4 className={`text-sm font-bold truncate pr-6 ${isCompleted ? 'text-green-800 line-through decoration-green-500/50' : isCancelled ? 'text-red-800 line-through' : 'text-navy'}`}>{client?.name || 'Cliente'}</h4>
+                                                        <h4 className={`text-sm font-bold truncate pr-6 ${isCompleted ? 'text-green-800 line-through decoration-green-500/50' : isCancelled ? 'text-red-800 line-through' : 'text-navy'}`}>
+                                                            {appt.clientId ? (client?.name || 'Cliente Carregando...') : (appt.clientName || 'Agendamento')}
+                                                        </h4>
                                                     </div>
                                                     <span className={`inline-block mt-1 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded-md border ${typeColor}`}>
                                                         {appt.type}
@@ -390,7 +405,6 @@ export default function Agenda() {
                                                     <div className="size-8 rounded-lg bg-white border border-gray-200 bg-cover bg-center shrink-0" style={{ backgroundImage: `url('${item.img}')` }}></div>
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-xs font-bold text-navy truncate">{item.name}</p>
-                                                        <p className="text-[10px] text-gray-500 truncate">{item.sku}</p>
                                                     </div>
                                                 </div>
                                             ))}
@@ -444,39 +458,42 @@ export default function Agenda() {
     return (
         <div className="flex flex-col h-full overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
             {/* Header Controls */}
-            <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row justify-between gap-4 bg-white shrink-0">
+            <div className="p-4 md:p-6 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white shrink-0">
                 <div>
-                    <h2 className="text-2xl font-bold text-navy flex items-center gap-2">
+                    <h2 className="text-xl md:text-2xl font-black text-navy flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary">calendar_month</span>
                         Agenda Maestro
                     </h2>
-                    <p className="text-gray-500 text-sm">Visualização mensal de agendamentos e locações.</p>
+                    <p className="text-gray-500 text-xs md:text-sm">Visualização mensal de agendamentos e locações.</p>
                 </div>
 
-                <div className="flex items-center gap-4 bg-gray-50 p-1 rounded-lg border border-gray-200">
-                    <button onClick={() => shiftDate(-30)} className="size-8 flex items-center justify-center rounded hover:bg-white hover:shadow text-gray-600">
-                        <span className="material-symbols-outlined">chevron_left</span>
-                    </button>
-                    <div className="flex flex-col items-center px-2">
-                        <span className="text-sm font-bold text-navy capitalize">
-                            {viewStartDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
-                        </span>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                    {/* Navigator */}
+                    <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 w-full sm:w-auto justify-between sm:justify-start">
+                        <button onClick={() => shiftDate(-30)} className="size-9 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-gray-600 transition-all">
+                            <span className="material-symbols-outlined">chevron_left</span>
+                        </button>
+                        <div className="flex flex-col items-center px-4">
+                            <span className="text-xs md:text-sm font-bold text-navy capitalize whitespace-nowrap">
+                                {viewStartDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                            </span>
+                        </div>
+                        <button onClick={() => shiftDate(30)} className="size-9 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-gray-600 transition-all">
+                            <span className="material-symbols-outlined">chevron_right</span>
+                        </button>
+                        <div className="w-px h-4 bg-gray-200 mx-1 hidden sm:block"></div>
+                        <button onClick={goToToday} className="px-4 py-1.5 text-xs font-bold text-navy hover:bg-white hover:shadow-sm rounded-lg transition-all">
+                            Hoje
+                        </button>
                     </div>
-                    <button onClick={() => shiftDate(30)} className="size-8 flex items-center justify-center rounded hover:bg-white hover:shadow text-gray-600">
-                        <span className="material-symbols-outlined">chevron_right</span>
-                    </button>
-                    <button onClick={goToToday} className="px-3 py-1 text-sm font-bold text-navy hover:bg-white hover:shadow rounded transition-all ml-2">
-                        Hoje
-                    </button>
-                </div>
 
-                <div className="flex items-center gap-4">
+                    {/* Action Button */}
                     <button
                         onClick={() => setIsApptModal(true)}
-                        className="flex items-center gap-2 px-3 md:px-4 py-2 bg-navy text-white text-sm font-bold rounded-lg shadow hover:bg-navy/90 transition-all shrink-0"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-navy text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-navy/20 hover:bg-primary transition-all active:scale-95"
                     >
-                        <span className="material-symbols-outlined text-sm">add_task</span>
-                        <span className="hidden md:inline">Agendar Visita</span>
+                        <span className="material-symbols-outlined text-lg">add_task</span>
+                        <span>Agendar Visita</span>
                     </button>
                 </div>
             </div>
@@ -619,9 +636,9 @@ export default function Agenda() {
                                                     }
 
                                                     return (
-                                                        <div key={a.id} className={`mx-1 h-6 flex items-center gap-1 text-[10px] ${bgClass} px-1.5 rounded-md font-bold truncate border relative z-20`} title={`${a.time} - ${a.type}`}>
+                                                        <div key={a.id} className={`mx-1 h-6 flex items-center gap-1 text-[10px] ${bgClass} px-1.5 rounded-md font-bold truncate border relative z-20`} title={`${a.time} - ${a.type} - ${a.clientName || clients.find(c => c.id === a.clientId)?.name}`}>
                                                             <span className="material-symbols-outlined text-[10px]">schedule</span>
-                                                            <span className="truncate">{a.time} Agendamento</span>
+                                                            <span className="truncate">{a.time} {a.clientName || clients.find(c => c.id === a.clientId)?.name || 'Agendamento'}</span>
                                                         </div>
                                                     );
                                                 })}
@@ -713,6 +730,7 @@ export default function Agenda() {
             <NewAppointmentModal
                 isOpen={isApptModalOpen}
                 onClose={() => setIsApptModal(false)}
+                initialDate={selectedDate ? selectedDate.toISOString().split('T')[0] : undefined}
             />
 
             <AlertModal
