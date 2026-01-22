@@ -171,4 +171,25 @@ export const settingsAPI = {
     }
 };
 
+// External APIs
+export const viaCepAPI = {
+    getAddress: async (cep: string) => {
+        const cleanCep = cep.replace(/\D/g, '');
+        if (cleanCep.length !== 8) return null;
+        try {
+            const { data } = await axios.get(`https://viacep.com.br/ws/${cleanCep}/json/`);
+            if (data.erro) return null;
+            return {
+                address: data.logradouro,
+                neighborhood: data.bairro,
+                city: data.localidade,
+                state: data.uf
+            };
+        } catch (error) {
+            console.error('[ViaCEP] Error fetching address:', error);
+            return null;
+        }
+    }
+};
+
 export default api;

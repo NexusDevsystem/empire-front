@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { Contract, Item } from '../types';
+import { viaCepAPI } from '../services/api';
 
 interface NewContractModalProps {
     isOpen: boolean;
@@ -72,6 +73,25 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
             chest: '', waist: '', hips: '', shoulder: '', sleeve: '', inseam: '', neck: ''
         }
     });
+
+    const handleCEPChange = async (cep: string) => {
+        const formatted = maskCEP(cep);
+        setNewClientDetails(prev => ({ ...prev, zip: formatted }));
+
+        const cleanCep = cep.replace(/\D/g, '');
+        if (cleanCep.length === 8) {
+            const addressData = await viaCepAPI.getAddress(cleanCep);
+            if (addressData) {
+                setNewClientDetails(prev => ({
+                    ...prev,
+                    address: addressData.address,
+                    neighborhood: addressData.neighborhood,
+                    city: addressData.city,
+                    state: addressData.state
+                }));
+            }
+        }
+    };
 
     // Debutante State
     const [debutanteDetails, setDebutanteDetails] = useState({
@@ -577,7 +597,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">CEP</label>
                                                     <input
                                                         value={newClientDetails.zip}
-                                                        onChange={e => setNewClientDetails({ ...newClientDetails, zip: maskCEP(e.target.value) })}
+                                                        onChange={e => handleCEPChange(e.target.value)}
                                                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white"
                                                         placeholder="00000-000"
                                                     />

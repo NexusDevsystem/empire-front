@@ -3,6 +3,7 @@ import { useApp } from '../contexts/AppContext';
 import { IMAGES } from '../constants';
 import ConfirmationModal from './ConfirmationModal';
 import { useToast } from '../contexts/ToastContext';
+import { viaCepAPI } from '../services/api';
 
 // Helper functions for masking
 const formatCPF = (v: string) => v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})/, '$1-$2').replace(/(-\d{2})\d+?$/, '$1');
@@ -37,6 +38,25 @@ export default function Clients() {
             chest: '', waist: '', hips: '', shoulder: '', sleeve: '', inseam: '', neck: ''
         }
     });
+
+    const handleCEPChange = async (cep: string) => {
+        const formatted = formatCEP(cep);
+        setNewClient(prev => ({ ...prev, zip: formatted }));
+
+        const cleanCep = cep.replace(/\D/g, '');
+        if (cleanCep.length === 8) {
+            const addressData = await viaCepAPI.getAddress(cleanCep);
+            if (addressData) {
+                setNewClient(prev => ({
+                    ...prev,
+                    address: addressData.address,
+                    neighborhood: addressData.neighborhood,
+                    city: addressData.city,
+                    state: addressData.state
+                }));
+            }
+        }
+    };
 
     const handleSave = () => {
         if (newClient.name && newClient.phone) {
@@ -455,7 +475,7 @@ export default function Clients() {
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CEP</label>
                                     <input
                                         value={newClient.zip || ''}
-                                        onChange={e => setNewClient({ ...newClient, zip: formatCEP(e.target.value) })}
+                                        onChange={e => handleCEPChange(e.target.value)}
                                         className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none transition-all font-mono text-sm"
                                         placeholder="00000-000"
                                         maxLength={9}
