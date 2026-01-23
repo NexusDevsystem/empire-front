@@ -66,9 +66,9 @@ export default function Logistics() {
     // --- HANDLERS ---
 
     const handleConfirmPickup = (itemId: string, itemName: string, contractId: string) => {
-        // Validation: Signature check
+        // Validation: Signature check (Digital OR Physical)
         const contract = contracts.find(c => c.id === contractId);
-        if (contract && !contract.lesseeSignature) {
+        if (contract && !contract.lesseeSignature && !contract.isPhysicallySigned) {
             showToast('error', 'Saída Bloqueada: Contrato sem assinatura!');
             return;
         }
@@ -142,7 +142,7 @@ export default function Logistics() {
             ? item.status === 'Alugado'
             : ['Devolução', 'Na Lavanderia', 'No Atelier', 'Disponível'].includes(item.status);
 
-        const needsSignature = action === 'pickup' && !contract.lesseeSignature;
+        const needsSignature = action === 'pickup' && !contract.lesseeSignature && !contract.isPhysicallySigned;
 
         return (
             <div key={`${contract.id}-${item.id}`} className={`bg-white p-3 md:p-4 rounded-2xl border ${isDone ? 'border-green-100 bg-green-50/30' : (needsSignature ? 'border-amber-200 bg-amber-50/20 shadow-inner' : 'border-gray-100')} shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 group transition-all`}>
@@ -180,21 +180,29 @@ export default function Logistics() {
                         <p className="text-[10px] text-amber-500 font-bold text-center italic">Não é possível liberar</p>
                     </div>
                 ) : (
-                    <button
-                        onClick={() => action === 'pickup' ? handleConfirmPickup(item.id, item.name, contract.id) : handleReceiveItem(item.id, item.name, contract.id)}
-                        className={`
-                            px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95
-                            ${action === 'pickup'
-                                ? 'bg-navy text-white shadow-navy/20 hover:bg-primary'
-                                : 'bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600'
-                            }
-                        `}
-                    >
-                        <span className="material-symbols-outlined text-lg">
-                            {action === 'pickup' ? 'outbox' : 'input'}
-                        </span>
-                        {action === 'pickup' ? 'Liberar Saída' : 'Receber'}
-                    </button>
+                    <div className="flex flex-col gap-2 w-full sm:w-auto">
+                        {action === 'pickup' && contract.isPhysicallySigned && !item.status.includes('Alugado') && (
+                            <div className="flex items-center gap-1.5 justify-center text-[9px] font-black text-emerald-600 uppercase tracking-tighter bg-emerald-50 py-1 rounded-lg border border-emerald-100 mb-1">
+                                <span className="material-symbols-outlined text-sm">inventory_2</span>
+                                Assinado no Papel
+                            </div>
+                        )}
+                        <button
+                            onClick={() => action === 'pickup' ? handleConfirmPickup(item.id, item.name, contract.id) : handleReceiveItem(item.id, item.name, contract.id)}
+                            className={`
+                                px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95
+                                ${action === 'pickup'
+                                    ? 'bg-navy text-white shadow-navy/20 hover:bg-primary'
+                                    : 'bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600'
+                                }
+                            `}
+                        >
+                            <span className="material-symbols-outlined text-lg">
+                                {action === 'pickup' ? 'outbox' : 'input'}
+                            </span>
+                            {action === 'pickup' ? 'Liberar Saída' : 'Receber'}
+                        </button>
+                    </div>
                 )}
             </div>
         );

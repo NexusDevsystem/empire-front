@@ -68,7 +68,7 @@ export default function AvailabilitySearch() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-gray-50/50 overflow-hidden">
+        <div className="flex flex-col h-full lg:h-full bg-gray-50/50 lg:overflow-hidden">
             {/* Header */}
             <div className="p-6 bg-white border-b border-gray-200 shrink-0">
                 <div className="flex items-center gap-3">
@@ -82,9 +82,9 @@ export default function AvailabilitySearch() {
                 </div>
             </div>
 
-            <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden">
                 {/* Lateral Filters - Desktop / Top Filters - Mobile */}
-                <div className="w-full lg:w-80 bg-white border-r border-gray-100 overflow-y-auto p-6 shrink-0 custom-scrollbar">
+                <div className="w-full lg:w-80 bg-white border-b lg:border-r border-gray-100 lg:overflow-y-auto p-6 shrink-0 custom-scrollbar">
                     <div className="space-y-8">
                         {/* Dates Section */}
                         <div className="space-y-4">
@@ -177,7 +177,7 @@ export default function AvailabilitySearch() {
                 </div>
 
                 {/* Results Area */}
-                <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
+                <div className="flex-1 lg:overflow-y-auto p-6 md:p-8 custom-scrollbar">
                     {!isSearching ? (
                         <div className="h-full flex flex-col items-center justify-center text-center max-w-md mx-auto space-y-4">
                             <div className="size-20 rounded-3xl bg-white shadow-xl flex items-center justify-center text-gray-200">
@@ -256,7 +256,7 @@ export default function AvailabilitySearch() {
             {/* Mini-Timeline Modal */}
             {selectedItemForTimeline && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
-                    <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-[2rem] md:rounded-[2.5rem] shadow-2xl overflow-y-auto animate-in zoom-in-95 duration-300 custom-scrollbar">
                         {/* Modal Header */}
                         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                             <div className="flex items-center gap-4">

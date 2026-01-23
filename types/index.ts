@@ -118,6 +118,7 @@ export interface Contract {
     // Signatures (Base64)
     lesseeSignature?: string;
     attendantSignature?: string;
+    isPhysicallySigned?: boolean;
     number?: number;
 
     // Technical Details

@@ -24,23 +24,35 @@ export default function PrintableContract({ contract, client, items, onClose }: 
         try {
             const element = documentRef.current;
 
-            // Temporary styles to ensure capture of natural height
-            const originalStyle = element.style.height;
+            // Force fixed width during capture
+            const originalWidth = element.style.width;
+            const originalMaxWidth = element.style.maxWidth;
+            const originalPosition = element.style.position;
+            const originalLeft = element.style.left;
+            const originalHeight = element.style.height;
+
+            element.style.width = '210mm';
+            element.style.maxWidth = 'none';
+            element.style.position = 'absolute';
+            element.style.left = '-10000px'; // Hide off-screen during capture
             element.style.height = 'auto';
 
             const canvas = await html2canvas(element, {
-                scale: 3, // Higher quality for legal documents
+                scale: 3,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
-                windowWidth: element.scrollWidth,
-                windowHeight: element.scrollHeight,
+                windowWidth: 1024, // Virtual window width to force desktop layout
                 scrollY: -window.scrollY,
                 x: 0,
                 y: 0
             });
 
-            element.style.height = originalStyle;
+            element.style.width = originalWidth;
+            element.style.maxWidth = originalMaxWidth;
+            element.style.position = originalPosition;
+            element.style.left = originalLeft;
+            element.style.height = originalHeight;
 
             const imgData = canvas.toDataURL('image/png', 1.0);
 
@@ -74,9 +86,29 @@ export default function PrintableContract({ contract, client, items, onClose }: 
     };
 
     return (
-        <div className="fixed inset-0 z-[99999] flex flex-col items-center bg-gray-100/95 backdrop-blur-md overflow-y-auto no-scrollbar">
+        <div className="fixed inset-0 z-[99999] flex flex-col items-center bg-gray-100/95 backdrop-blur-md overflow-y-auto no-scrollbar print:bg-white print:overflow-visible">
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @media print {
+                    @page { size: A4; margin: 0; }
+                    body { visibility: hidden; }
+                    .print-controls { display: none !important; }
+                    #contract-document { 
+                        visibility: visible; 
+                        position: absolute; 
+                        left: 0; 
+                        top: 0; 
+                        width: 210mm !important;
+                        min-height: 297mm !important;
+                        margin: 0 !important;
+                        padding: 15mm !important;
+                        box-shadow: none !important;
+                        border: none !important;
+                    }
+                }
+            ` }} />
             {/* Print Overlay Controls */}
-            <div className="sticky top-0 w-full flex justify-end gap-3 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm z-[101] shrink-0">
+            <div className="sticky top-0 w-full flex justify-end gap-3 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm z-[101] shrink-0 print-controls">
                 <button
                     onClick={onClose}
                     disabled={isGenerating}
@@ -139,7 +171,7 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                         {/* Responsible Info */}
                         <section>
                             <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-gray-100 pb-0.5">Informações sobre o(a) Responsável</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-1 text-[11px]">
+                            <div className="grid grid-cols-3 gap-x-8 gap-y-1 text-[11px]">
                                 <div className="col-span-2">
                                     <span className="text-[8px] font-black text-black uppercase block">Nome Completo</span>
                                     <p className="font-bold border-b border-gray-50 uppercase">{client.name}</p>
@@ -182,7 +214,7 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                         {/* Debutante Info */}
                         <section>
                             <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-gray-100 pb-0.5">Debutante</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-1 text-[11px]">
+                            <div className="grid grid-cols-4 gap-x-8 gap-y-1 text-[11px]">
                                 <div className="col-span-2">
                                     <span className="text-[8px] font-black text-black uppercase block">Nome / Contato</span>
                                     <p className="font-bold border-b border-gray-50 uppercase">{contract.debutanteDetails?.name || '________________'}</p>
@@ -254,7 +286,7 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                     <div className="grid grid-cols-1 gap-3 mb-4 font-sans">
                         <section>
                             <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1.5 border-b border-gray-100 pb-0.5">I. Partes Contratantes</h3>
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-[11px]">
+                            <div className="grid grid-cols-6 gap-2 text-[11px]">
                                 <div className="col-span-3 md:col-span-4">
                                     <span className="text-[8px] font-black text-black uppercase block">Nome Completo</span>
                                     <p className="font-bold border-b border-gray-50 uppercase h-4">{client.name}</p>
@@ -302,7 +334,7 @@ export default function PrintableContract({ contract, client, items, onClose }: 
 
                         <section>
                             <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1.5 border-b border-gray-100 pb-0.5">II. Objeto e Período</h3>
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-[11px]">
+                            <div className="grid grid-cols-6 gap-2 text-[11px]">
                                 <div className="col-span-1 md:col-span-2">
                                     <span className="text-[8px] font-black text-black uppercase block">Retirada</span>
                                     <p className="font-bold border-b border-gray-50 h-4">{new Date(contract.startDate).toLocaleDateString('pt-BR')} às {contract.startTime || '09:00'}</p>

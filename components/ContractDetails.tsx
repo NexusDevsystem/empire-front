@@ -42,13 +42,27 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
     const handleSaveSig = async (data: string) => {
         try {
             if (sigType === 'lessee') {
-                await updateContract(contract.id, { lesseeSignature: data });
+                await updateContract(contract.id, { lesseeSignature: data, isPhysicallySigned: false });
             } else {
                 await updateContract(contract.id, { attendantSignature: data });
             }
             showToast('success', `Assinatura do ${sigType === 'lessee' ? 'cliente' : 'atendente'} salva com sucesso!`);
         } catch (error) {
             showToast('error', 'Erro ao salvar assinatura.');
+        }
+    };
+
+    const handleTogglePhysicalSignature = async () => {
+        try {
+            const newValue = !contract.isPhysicallySigned;
+            await updateContract(contract.id, {
+                isPhysicallySigned: newValue,
+                // If marking as physically signed, clear digital signature to avoid confusion
+                lesseeSignature: newValue ? undefined : contract.lesseeSignature
+            });
+            showToast('success', newValue ? 'Contrato marcado como Assinado no Papel.' : 'Assinatura física removida.');
+        } catch (error) {
+            showToast('error', 'Erro ao atualizar status de assinatura.');
         }
     };
 
@@ -346,18 +360,28 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div
                                 onClick={() => handleOpenSig('lessee')}
-                                className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${contract.lesseeSignature ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100 hover:border-primary/30'}`}
+                                className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${contract.lesseeSignature || contract.isPhysicallySigned ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100 hover:border-primary/30'}`}
                             >
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className={`material-symbols-outlined text-sm ${contract.lesseeSignature ? 'text-emerald-600' : 'text-gray-400'}`}>
-                                        {contract.lesseeSignature ? 'check_circle' : 'pending'}
-                                    </span>
-                                    <span className="text-xs font-bold uppercase text-gray-600">Cliente / Locatário</span>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`material-symbols-outlined text-sm ${contract.lesseeSignature || contract.isPhysicallySigned ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                            {contract.lesseeSignature || contract.isPhysicallySigned ? 'check_circle' : 'pending'}
+                                        </span>
+                                        <span className="text-xs font-bold uppercase text-gray-600">Cliente / Locatário</span>
+                                    </div>
+                                    {contract.isPhysicallySigned && (
+                                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded uppercase tracking-tighter">Papel</span>
+                                    )}
                                 </div>
                                 {contract.lesseeSignature ? (
                                     <img src={contract.lesseeSignature} alt="Assinatura Cliente" className="h-12 object-contain" />
+                                ) : contract.isPhysicallySigned ? (
+                                    <div className="h-12 flex items-center gap-2 text-emerald-700">
+                                        <span className="material-symbols-outlined">description</span>
+                                        <p className="text-xs font-bold">Contrato Assinado Manualmente</p>
+                                    </div>
                                 ) : (
-                                    <p className="text-xs text-gray-400 italic">Clique para assinar</p>
+                                    <p className="text-xs text-gray-400 italic">Clique para assinar digitalmente</p>
                                 )}
                             </div>
                             <div
@@ -376,6 +400,25 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                                     <p className="text-xs text-gray-400 italic">Clique para assinar</p>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Manual Signature Toggle Overlay */}
+                        <div className="mt-4 p-4 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-between group">
+                            <div className="flex items-center gap-3">
+                                <div className={`size-10 rounded-xl flex items-center justify-center transition-all ${contract.isPhysicallySigned ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-white text-gray-400 border border-gray-200'}`}>
+                                    <span className="material-symbols-outlined">{contract.isPhysicallySigned ? 'inventory_2' : 'history_edu'}</span>
+                                </div>
+                                <div>
+                                    <p className="text-sm font-black text-navy group-hover:text-primary transition-colors">Assinatura no Papel (Manual)</p>
+                                    <p className="text-[11px] text-gray-500 font-medium">Use se o cliente já assinou o contrato impresso manualmente.</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={handleTogglePhysicalSignature}
+                                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${contract.isPhysicallySigned ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                            >
+                                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${contract.isPhysicallySigned ? 'translate-x-5' : 'translate-x-0'}`} />
+                            </button>
                         </div>
                     </section>
 
@@ -398,20 +441,21 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                     <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                         <button
                             onClick={() => handleOpenSig('lessee')}
-                            className={`px-6 py-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-2 text-sm ${contract.lesseeSignature && contract.attendantSignature
+                            disabled={contract.isPhysicallySigned}
+                            className={`px-6 py-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-2 text-sm ${(contract.lesseeSignature || contract.isPhysicallySigned) && contract.attendantSignature
                                 ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
                                 : 'bg-white text-navy border-navy/20 hover:bg-gray-50'
-                                }`}
+                                } ${contract.isPhysicallySigned ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <span className="material-symbols-outlined text-sm">
-                                {contract.lesseeSignature && contract.attendantSignature ? 'check_circle' : 'ink_pen'}
+                                {(contract.lesseeSignature || contract.isPhysicallySigned) && contract.attendantSignature ? 'check_circle' : 'ink_pen'}
                             </span>
-                            {contract.lesseeSignature && contract.attendantSignature ? 'Contrato Assinado' : 'Coletar Assinatura'}
+                            {contract.isPhysicallySigned ? 'Assinado Manual' : (contract.lesseeSignature && contract.attendantSignature ? 'Contrato Assinado' : 'Coletar Assinatura')}
                         </button>
 
                         <button
                             onClick={onPrint}
-                            className={`px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 text-sm ${contract.lesseeSignature && contract.attendantSignature
+                            className={`px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 text-sm ${(contract.lesseeSignature || contract.isPhysicallySigned) && contract.attendantSignature
                                 ? 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700'
                                 : 'bg-navy shadow-navy/20 hover:scale-[1.02] active:scale-95'
                                 }`}
