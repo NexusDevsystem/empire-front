@@ -6,11 +6,13 @@ import NewItemModal from './NewItemModal';
 import StockDetailsModal from './StockDetailsModal';
 
 export default function Inventory() {
-    const { items, contracts, addItem, deleteItem } = useApp();
+    const { items, contracts, addItem, deleteItem, profile } = useApp();
     const { showToast } = useToast();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedGroup, setSelectedGroup] = useState<Item[] | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+
+    const isSeller = profile?.role === 'vendedor';
 
     // Group items by name + type + size + color (unique product identifier)
     const groupedItems = useMemo(() => {
@@ -77,18 +79,22 @@ export default function Inventory() {
         <div className="flex flex-col gap-8 pb-20">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="flex flex-col gap-1 md:gap-2">
-                    <h1 className="text-2xl md:text-4xl font-black text-navy leading-tight tracking-tight">Vestuário</h1>
+                    <h1 className="text-2xl md:text-4xl font-black text-navy leading-tight tracking-tight flex items-center">
+                        Vestuário
+                    </h1>
                     <p className="text-gray-500 text-xs md:text-sm max-w-2xl">
                         Gerencie o ciclo de vida, disponibilidade e manutenção dos ativos de luxo.
                     </p>
                 </div>
-                <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 rounded-xl h-12 px-8 bg-gold text-navy text-xs md:text-sm font-black uppercase tracking-widest shadow-lg shadow-gold/20 hover:bg-gold/90 transition-all active:scale-95 shrink-0"
-                >
-                    <span className="material-symbols-outlined text-lg">add</span>
-                    <span>Novo Item</span>
-                </button>
+                {!isSeller && (
+                    <button
+                        onClick={() => setIsModalOpen(true)}
+                        className="w-full md:w-auto flex items-center justify-center gap-2 rounded-xl h-12 px-8 bg-gold text-navy text-xs md:text-sm font-black uppercase tracking-widest shadow-lg shadow-gold/20 hover:bg-gold/90 transition-all active:scale-95 shrink-0"
+                    >
+                        <span className="material-symbols-outlined text-lg">add</span>
+                        <span>Novo Item</span>
+                    </button>
+                )}
             </div>
 
             {/* Filter */}
@@ -237,7 +243,7 @@ export default function Inventory() {
             <StockDetailsModal
                 isOpen={selectedGroup !== null}
                 onClose={() => setSelectedGroup(null)}
-                items={selectedGroup || []}
+                representativeItem={selectedGroup ? selectedGroup[0] : null}
             />
         </div>
     );

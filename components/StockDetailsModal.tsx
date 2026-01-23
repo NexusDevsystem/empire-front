@@ -7,16 +7,33 @@ import { useToast } from '../contexts/ToastContext';
 interface StockDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    items: Item[]; // All items in this group
+    representativeItem: Item | null; // Representative item of the group
 }
 
-export default function StockDetailsModal({ isOpen, onClose, items }: StockDetailsModalProps) {
-    const { deleteItem, addItem, updateItem, contracts, updateContractStatus, navigateTo } = useApp();
+export default function StockDetailsModal({ isOpen, onClose, representativeItem }: StockDetailsModalProps) {
+    const { items: globalItems, deleteItem, addItem, updateItem, contracts, updateContractStatus, navigateTo, profile } = useApp();
     const { showToast } = useToast();
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<Partial<Item>>({});
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [checkInId, setCheckInId] = useState<string | null>(null);
+
+    const isSeller = profile?.role === 'vendedor';
+
+    // Selection Mode
+    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    // Sync with global items in real-time
+    const currentItems = useMemo(() => {
+        if (!representativeItem) return [];
+        return globalItems.filter(i =>
+            i.name === representativeItem.name &&
+            i.type === representativeItem.type &&
+            i.size === representativeItem.size &&
+            (i.color || '') === (representativeItem.color || '')
+        );
+    }, [globalItems, representativeItem]);
 
     const handleCheckIn = (item: Item, needsLaundry: boolean) => {
         const newStatus = needsLaundry ? 'Na Lavanderia' : 'Disponível';
@@ -48,7 +65,7 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
     const [currentDate, setCurrentDate] = useState(new Date());
 
     // Identify the representative product info from the first item
-    const product = items[0];
+    const product = representativeItem;
 
     // --- TIMELINE LOGIC (List View) ---
     const TIMELINE_DAYS = 7;
@@ -96,15 +113,20 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
     };
 
     const handleAddUnit = () => {
+        if (!product) return;
         const newItem: Item = {
             ...product,
             id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36), // Robust ID
             status: 'Disponível',
             statusColor: 'primary',
             loc: 'Estoque',
-            note: ''
+            note: '',
+            totalQuantity: 1,
+            availableQuantity: 1,
+            rentedUnits: 0
         };
         addItem(newItem);
+        showToast('success', 'Nova unidade adicionada com sucesso!');
     };
 
     const handleDelete = async (id: string) => {
@@ -112,12 +134,57 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
             await deleteItem(id);
             setDeleteConfirmId(null);
             showToast('success', 'Item removido do acervo com sucesso.');
-            if (items.length === 1) onClose();
+            if (currentItems.length === 1 && currentItems[0].id === id) onClose();
         } catch (error) {
             console.error('Erro ao deletar item:', error);
             showToast('error', 'Erro ao remover item. Verifique suas permissões.');
             setDeleteConfirmId(null);
         }
+    };
+
+    const handleBulkDelete = async () => {
+        try {
+            // Group virtual IDs by their base item ID
+            const deletionsByItemId: Record<string, number> = {};
+            selectedIds.forEach(vid => {
+                const baseId = vid.split('-')[0];
+                deletionsByItemId[baseId] = (deletionsByItemId[baseId] || 0) + 1;
+            });
+
+            for (const [itemId, count] of Object.entries(deletionsByItemId)) {
+                const item = globalItems.find(i => i.id === itemId);
+                if (!item) continue;
+
+                const currentQty = item.totalQuantity || 1;
+
+                if (count >= currentQty) {
+                    // Delete the entire item if all virtual units are selected
+                    await deleteItem(itemId);
+                } else {
+                    // Reduce quantity if only some virtual units are selected
+                    updateItem(itemId, {
+                        totalQuantity: currentQty - count,
+                        availableQuantity: Math.max(0, (item.availableQuantity || 0) - count)
+                    });
+                }
+            }
+
+            showToast('success', `${selectedIds.length} unidade(s) processada(s) com sucesso.`);
+            setSelectedIds([]);
+            setIsSelectionMode(false);
+
+            // If everything was deleted, close modal
+            const remainingUnits = virtualUnits.length - selectedIds.length;
+            if (remainingUnits === 0) onClose();
+        } catch (error) {
+            showToast('error', 'Erro ao processar exclusão em massa.');
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+        );
     };
 
     const startEdit = (item: Item) => {
@@ -137,25 +204,25 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
     // Virtualize units: Expand items with totalQuantity > 1 into individual rows
     const virtualUnits = useMemo(() => {
         const units: { item: Item, unitIndex: number, virtualId: string }[] = [];
-        items.forEach(item => {
+        currentItems.forEach(item => {
             const qty = item.totalQuantity || 1;
             for (let i = 0; i < qty; i++) {
                 units.push({
                     item,
                     unitIndex: i + 1,
-                    virtualId: `${item.id}-${i}`
+                    virtualId: qty > 1 ? `${item.id}-${i}` : item.id
                 });
             }
         });
         return units;
-    }, [items]);
+    }, [currentItems]);
 
     // Robust Scheduling: Assign contracts to virtual slots to prevent overlapping slots
     const unitSchedules = useMemo(() => {
         const schedules: Record<string, { contract: any, start: Date, end: Date }[]> = {};
 
         // 1. Get all relevant contracts
-        const itemIds = items.map(i => i.id);
+        const itemIds = currentItems.map(i => i.id);
         const relatedContracts = contracts.filter(c =>
             c.items.some(id => itemIds.includes(id)) &&
             c.status !== 'Cancelado'
@@ -193,7 +260,7 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
         });
 
         return schedules;
-    }, [contracts, virtualUnits, items]);
+    }, [contracts, virtualUnits, currentItems]);
 
     // Helper to check availability for a specific VIRTUAL unit and date
     const getItemDayStatus = (unit: any, date: Date) => {
@@ -294,7 +361,7 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
                         {/* Inventory Stat (Desktop) */}
                         <div className="hidden md:block text-right text-white mb-2">
                             <p className="text-4xl font-black leading-none tracking-tighter">
-                                {items.reduce((sum, i) => sum + (i.totalQuantity || 1), 0)}
+                                {currentItems.reduce((sum, i) => sum + (i.totalQuantity || 1), 0)}
                             </p>
                             <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Acervo Total</p>
                         </div>
@@ -340,11 +407,23 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
                             </div>
                         )}
 
-                        {viewMode === 'list' && (
-                            <button onClick={handleAddUnit} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-xs md:text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
-                                <span className="material-symbols-outlined text-lg md:text-xl">add_circle</span>
-                                <span>Adicionar Unidade</span>
-                            </button>
+                        {!isSeller && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        setIsSelectionMode(!isSelectionMode);
+                                        setSelectedIds([]);
+                                    }}
+                                    className={`size-10 flex items-center justify-center rounded-xl transition-all border ${isSelectionMode ? 'bg-red-50 text-red-600 border-red-200 shadow-inner' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                                    title={isSelectionMode ? 'Cancelar Seleção' : 'Selecionar Vários'}
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">{isSelectionMode ? 'close' : 'checklist'}</span>
+                                </button>
+                                <button onClick={handleAddUnit} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-xs md:text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
+                                    <span className="material-symbols-outlined text-lg md:text-xl">add_circle</span>
+                                    <span>Adicionar Unidade</span>
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
@@ -352,313 +431,247 @@ export default function StockDetailsModal({ isOpen, onClose, items }: StockDetai
                 {/* Main Content */}
                 <div className="flex-1 overflow-auto bg-gray-50/50 flex flex-col">
 
-                    {/* LIST VIEW (RESOURCE SCHEDULER) */}
+                    {/* LIST VIEW (RESOURCE CARDS) */}
                     {viewMode === 'list' && (
-                        <div className="flex-1 overflow-auto bg-white flex flex-col relative w-full">
-
-                            {/* Scrollable Container for the extensive grid */}
-                            <div className="min-w-fit flex flex-col">
-
-                                {/* 1. Header Row (Days) */}
-                                <div className="flex border-b border-gray-200 sticky top-0 z-30 bg-white shadow-sm">
-                                    {/* Sidebar Header Stub */}
-                                    <div className="w-64 shrink-0 p-3 bg-gray-50 border-r border-gray-200 sticky left-0 z-40 font-bold text-xs text-navy uppercase tracking-wider flex items-center justify-between">
-                                        <span>Item Físico</span>
-                                        <span className="text-gray-400 font-normal normal-case">{virtualUnits.length} unidades</span>
-                                    </div>
-
-                                    {/* Days Headers */}
-                                    <div className="flex">
-                                        {calendarDays.map((date, i) => {
-                                            if (!date) return <div key={i} className="w-32 bg-gray-50/30 border-r border-gray-100"></div>; // Padding
-                                            const isToday = date.toDateString() === new Date().toDateString();
-                                            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-
-                                            return (
-                                                <div key={i} className={`w-32 py-2 border-r border-gray-100 flex flex-col items-center justify-center gap-0.5 ${isToday ? 'bg-primary/5' : isWeekend ? 'bg-gray-50/50' : 'bg-white'}`}>
-                                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-primary' : 'text-gray-400'}`}>
-                                                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][date.getDay()]}
-                                                    </span>
-                                                    <span className={`text-sm font-black ${isToday ? 'text-primary' : 'text-navy'}`}>
-                                                        {date.getDate()}
-                                                    </span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* 2. Item Rows */}
-                                <div className="divide-y divide-gray-100">
-                                    {virtualUnits.map((unit, unitIdx) => (
-                                        <div key={unit.virtualId} className="flex hover:bg-gray-50/50 transition-colors group">
-
-                                            {/* Sticky Sidebar: Item Details */}
-                                            <div className="w-64 shrink-0 p-3 border-r border-gray-100 bg-white sticky left-0 z-20 group-hover:bg-gray-50/50 transition-colors flex flex-col justify-center gap-1 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-xs font-bold text-navy">Unidade {unitIdx + 1}</span>
-                                                    {/* Actions (Hover only) */}
-                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                                        <button
-                                                            onClick={() => startEdit(unit.item)}
-                                                            className="p-1.5 hover:bg-navy/5 text-navy/50 hover:text-navy rounded-lg transition-colors"
-                                                            title="Editar item"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[18px]">edit_note</span>
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setDeleteConfirmId(unit.item.id)}
-                                                            className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-lg transition-colors"
-                                                            title="Excluir item permanentemente"
-                                                        >
-                                                            <span className="material-symbols-outlined text-[18px]">delete</span>
-                                                        </button>
-                                                    </div>
-                                                </div>
-
-                                                {/* Mini Status Badge (calculated for Today) */}
-                                                {(() => {
-                                                    const todayStatus = getItemDayStatus(unit, new Date());
-                                                    const colorMap: any = {
-                                                        'green': 'bg-emerald-500',
-                                                        'red': 'bg-red-500',
-                                                        'purple': 'bg-purple-600',
-                                                        'cyan': 'bg-cyan-500',
-                                                        'orange': 'bg-orange-500',
-                                                        'gray': 'bg-gray-400'
-                                                    };
-                                                    return (
-                                                        <div className="flex items-center gap-1.5">
-                                                            <div className={`size-1.5 rounded-full ${colorMap[todayStatus.color] || 'bg-primary'}`} />
-                                                            <span className="text-[10px] text-gray-400 font-bold truncate max-w-[120px]">
-                                                                {todayStatus.status === 'free' && unit.item.totalQuantity === 1 ? unit.item.status : todayStatus.label}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })()}
-                                                <div className="text-[9px] font-mono text-gray-300">ID: {unit.item.id.substring(0, 6)}{unit.item.totalQuantity! > 1 ? `-${unit.unitIndex}` : ''}</div>
+                        <div className="flex-1 overflow-auto p-4 md:p-8 bg-gray-50/50">
+                            {/* Selection Bar */}
+                            {isSelectionMode && selectedIds.length > 0 && (
+                                <div className="sticky top-0 z-40 -mx-4 md:-mx-8 mb-6 px-4 md:px-8 py-2 bg-gray-50/80 backdrop-blur-md animate-in slide-in-from-top-4 duration-300">
+                                    <div className="bg-navy rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-4 border border-white/10">
+                                        <div className="flex items-center gap-3">
+                                            <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center text-white">
+                                                <span className="material-symbols-outlined">checklist</span>
                                             </div>
-
-                                            {/* Timeline Grid for this Item */}
-                                            <div className="flex relative">
-                                                {/* Background Grid Lines (Absolute) - Optional, but keeping strict cell structure avoids misalignment */}
-
-                                                {calendarDays.map((date, idx) => {
-                                                    if (!date) return <div key={idx} className="w-32 border-r border-gray-100 h-16 bg-gray-50/10"></div>;
-
-                                                    const dayStatus = getItemDayStatus(unit, date);
-                                                    const isToday = date.toDateString() === new Date().toDateString();
-
-                                                    // Continuity Logic
-                                                    const getStatusAt = (offset: number) => {
-                                                        const d = new Date(date);
-                                                        d.setDate(date.getDate() + offset);
-                                                        return getItemDayStatus(unit, d);
-                                                    };
-
-                                                    const prev = idx > 0 ? getStatusAt(-1) : null;
-                                                    const next = idx < calendarDays.length - 1 ? getStatusAt(1) : null;
-
-                                                    let content = null;
-                                                    let bgClass = '';
-
-                                                    // BLOCKED (Physical)
-                                                    if (dayStatus.status === 'blocked') {
-                                                        if (dayStatus.color === 'purple') bgClass = 'bg-purple-500';
-                                                        else if (dayStatus.color === 'cyan') bgClass = 'bg-cyan-500';
-                                                        else if (dayStatus.color === 'orange') bgClass = 'bg-orange-500';
-                                                        else bgClass = 'bg-gray-400';
-
-                                                        const samePrev = prev?.status === 'blocked' && prev?.label === dayStatus.label;
-                                                        const sameNext = next?.status === 'blocked' && next?.label === dayStatus.label;
-
-                                                        bgClass += ` absolutely-positioned-bar z-10 shadow-sm flex items-center justify-center
-                                                            ${!samePrev ? 'rounded-l-md ml-1' : '-ml-px rounded-l-none'} 
-                                                            ${!sameNext ? 'rounded-r-md mr-1' : '-mr-px rounded-r-none'}
-                                                        `;
-
-                                                        // Show Label on first day of block or if it's Sunday (start of visual week)
-                                                        if (!samePrev || date.getDay() === 0) {
-                                                            let icon = 'block';
-                                                            if (dayStatus.label === 'No Atelier') icon = 'straighten'; // Ruler
-                                                            if (dayStatus.label === 'Na Lavanderia') icon = 'local_laundry_service';
-                                                            if (dayStatus.label === 'Devolução') icon = 'assignment_return';
-
-                                                            content = (
-                                                                <div className="flex items-center gap-1 px-2 overflow-hidden text-white/90">
-                                                                    <span className="material-symbols-outlined text-[14px]">{icon}</span>
-                                                                    <span className="text-[9px] font-bold uppercase tracking-wider truncate hidden md:inline-block">
-                                                                        {dayStatus.label}
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        }
-                                                    }
-                                                    // BOOKED (Contract)
-                                                    else if (dayStatus.status === 'booked' && dayStatus.contractId) {
-                                                        const connectPrev = prev?.status === 'booked' && prev?.contractId === dayStatus.contractId;
-                                                        const connectNext = next?.status === 'booked' && next?.contractId === dayStatus.contractId;
-                                                        const isStart = !connectPrev;
-                                                        const isEnd = !connectNext;
-
-                                                        const baseColor = getContractColor(dayStatus.contractId);
-
-                                                        bgClass = `z-10 shadow-sm flex items-center justify-center relative h-10 w-full`;
-
-                                                        // Margin/Rounded logic
-                                                        const styleClasses = `
-                                                            ${isStart ? 'rounded-l-md ml-1 pl-1' : '-ml-px rounded-l-none border-l-0'} 
-                                                            ${isEnd ? 'rounded-r-md mr-1' : '-mr-px rounded-r-none border-r-0'}
-                                                        `;
-
-                                                        content = (
-                                                            <div
-                                                                className={`h-10 w-full flex items-center text-white text-[10px] font-bold truncate transition-all hover:brightness-110 cursor-pointer ${styleClasses}`}
-                                                                style={{ backgroundColor: baseColor }}
-                                                                title={`${dayStatus.label}`}
-                                                            >
-                                                                {(isStart || date.getDay() === 0) && (
-                                                                    <span className="px-2 truncate">{dayStatus.label}</span>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    }
-
-                                                    return (
-                                                        <div key={idx} className={`w-32 h-16 border-r border-gray-100 relative flex items-center justify-center ${isToday ? 'bg-primary/5' : ''}`}>
-                                                            {bgClass && !content /* If pure CSS background class with no content (not booked case) */ ? (
-                                                                <div className={`h-10 w-full ${bgClass}`} title={dayStatus.label}>
-                                                                    {content}
-                                                                </div>
-                                                            ) : content}
-                                                        </div>
-                                                    );
-                                                })}
+                                            <div>
+                                                <p className="text-white font-black text-sm uppercase tracking-tight">{selectedIds.length} selecionados</p>
+                                                <p className="text-gray-400 text-[10px] uppercase font-bold tracking-widest leading-none">Ação em massa ativada</p>
                                             </div>
                                         </div>
-                                    ))}
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setIsSelectionMode(false);
+                                                    setSelectedIds([]);
+                                                }}
+                                                className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleBulkDelete}
+                                                className="px-6 py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-600/20 active:scale-95 flex items-center gap-2"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                Excluir Unidades
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                {virtualUnits.map((unit, unitIdx) => {
+                                    const todayStatus = getItemDayStatus(unit, new Date());
+                                    const isSelected = selectedIds.includes(unit.item.id);
+                                    const colorMap: Record<string, string> = {
+                                        'green': 'bg-emerald-500',
+                                        'red': 'bg-red-500',
+                                        'purple': 'bg-purple-600',
+                                        'cyan': 'bg-cyan-500',
+                                        'orange': 'bg-orange-500',
+                                        'gray': 'bg-gray-400'
+                                    };
+
+                                    return (
+                                        <div
+                                            key={unit.virtualId}
+                                            onClick={() => isSelectionMode && toggleSelect(unit.virtualId)}
+                                            className={`group relative bg-white rounded-2xl border p-5 shadow-sm transition-all duration-300 flex flex-col gap-4 overflow-hidden ${isSelectionMode ? 'cursor-pointer' : ''} ${selectedIds.includes(unit.virtualId) ? 'ring-2 ring-primary border-primary shadow-xl scale-[1.02]' : 'border-gray-100'}`}
+                                        >
+                                            {/* Status Accent Bar / Selection Overlay */}
+                                            {isSelectionMode ? (
+                                                <div className={`absolute top-0 left-0 right-0 h-1.5 transition-colors ${isSelected ? 'bg-primary' : 'bg-gray-200'}`} />
+                                            ) : (
+                                                <div className={`absolute top-0 left-0 right-0 h-1.5 ${colorMap[todayStatus.color] || 'bg-primary'}`} />
+                                            )}
+
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="text-sm font-black text-navy uppercase tracking-tight">Unidade {unitIdx + 1}</h4>
+                                                        <span className="text-[10px] font-mono text-gray-300">#{unit.item.id.substring(0, 4)}</span>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Status Atual</p>
+                                                </div>
+
+                                                <div className="flex gap-1">
+                                                    {isSelectionMode ? (
+                                                        <div className={`size-6 rounded-full border-2 flex items-center justify-center transition-all ${selectedIds.includes(unit.virtualId) ? 'bg-primary border-primary text-white scale-110' : 'border-gray-200 bg-white'}`}>
+                                                            {selectedIds.includes(unit.virtualId) && <span className="material-symbols-outlined text-[16px] font-black">check</span>}
+                                                        </div>
+                                                    ) : (
+                                                        !isSeller && (
+                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); startEdit(unit.item); }}
+                                                                    className="size-8 flex items-center justify-center bg-gray-50 text-gray-400 hover:text-navy hover:bg-gray-100 rounded-lg transition-all"
+                                                                    title="Editar"
+                                                                >
+                                                                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                                </button>
+                                                            </div>
+                                                        )
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className={`mt-auto flex items-center gap-3 p-3 rounded-xl border ${todayStatus.status === 'free' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-gray-50 border-gray-100 text-gray-700'}`}>
+                                                <div className={`size-3 rounded-full ${colorMap[todayStatus.color] || 'bg-primary'} animate-pulse`} />
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-black uppercase tracking-wider leading-none">
+                                                        {todayStatus.status === 'free' && unit.item.totalQuantity === 1 ? unit.item.status : todayStatus.label}
+                                                    </span>
+                                                    {todayStatus.contractId && (
+                                                        <span className="text-[9px] font-medium opacity-50 mt-0.5">Clique para detalhes no calendário</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
+
+                            {/* Empty State */}
+                            {virtualUnits.length === 0 && (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-4 opacity-50">
+                                    <span className="material-symbols-outlined text-6xl">inventory_2</span>
+                                    <p className="font-bold uppercase tracking-widest text-sm">Nenhuma unidade cadastrada</p>
+                                </div>
+                            )}
                         </div>
                     )}
 
 
                     {/* CALENDAR VIEW (STANDARD GRID) */}
                     {viewMode === 'calendar' && (
-                        <div className="flex-1 overflow-hidden flex flex-col bg-white">
-                            {/* Days Header */}
-                            <div className="grid grid-cols-7 border-b border-gray-200">
-                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-                                    <div key={d} className="text-center py-2 text-xs font-bold uppercase tracking-wider text-gray-400 bg-gray-50 sticky top-0 z-20">
-                                        {d}
-                                    </div>
-                                ))}
-                            </div>
+                        <div className="flex-1 overflow-auto bg-white flex flex-col">
+                            {/* Horizontal Scroll Wrapper */}
+                            <div className="min-w-[800px] flex-1 flex flex-col">
+                                {/* Days Header */}
+                                <div className="grid grid-cols-7 border-b border-gray-200">
+                                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
+                                        <div key={d} className="text-center py-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 bg-gray-50/50 sticky top-0 z-20">
+                                            {d}
+                                        </div>
+                                    ))}
+                                </div>
 
-                            {/* Grid (Per-Item Rows) */}
-                            <div className="flex-1 overflow-y-auto">
-                                <div className="grid grid-cols-7 border-l border-t border-gray-200 auto-rows-fr min-h-[120px]">
-                                    {calendarDays.map((date, i) => {
-                                        if (!date) return <div key={i} className="bg-gray-50/30 border-r border-b border-gray-200 min-h-[120px]"></div>;
+                                {/* Grid (Per-Item Rows) */}
+                                <div className="flex-1 overflow-y-auto">
+                                    <div className="grid grid-cols-7 border-l border-t border-gray-200 auto-rows-fr min-h-[120px]">
+                                        {calendarDays.map((date, i) => {
+                                            if (!date) return <div key={i} className="bg-gray-50/10 border-r border-b border-gray-200 min-h-[120px]"></div>;
 
-                                        const dateStr = date.toISOString().split('T')[0];
-                                        const { availableCount } = getDailyStats(date);
-                                        const isToday = date.toDateString() === new Date().toDateString();
+                                            const { availableCount } = getDailyStats(date);
+                                            const isToday = date.toDateString() === new Date().toDateString();
 
-                                        return (
-                                            <div
-                                                key={i}
-                                                className={`border-r border-b border-gray-200 flex flex-col transition-all hover:bg-gray-50 min-h-[120px] py-1 gap-0.5 ${isToday ? 'bg-primary/5' : 'bg-white'}`}
-                                            >
-                                                {/* Date Header */}
-                                                <div className="flex justify-between items-start px-2 mb-1">
-                                                    <span className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-gray-400'}`}>
-                                                        {date.getDate()}
-                                                    </span>
-                                                </div>
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className={`border-r border-b border-gray-200 flex flex-col transition-all hover:bg-gray-50/30 min-h-[140px] py-2 gap-1 ${isToday ? 'bg-primary/5' : 'bg-white'}`}
+                                                >
+                                                    {/* Date Header */}
+                                                    <div className="flex justify-between items-start px-2.5 mb-2">
+                                                        <span className={`text-xs font-black tracking-tight ${isToday ? 'text-primary' : 'text-gray-300'}`}>
+                                                            {date.getDate()}
+                                                        </span>
+                                                        {isToday && (
+                                                            <span className="size-1.5 rounded-full bg-primary animate-ping"></span>
+                                                        )}
+                                                    </div>
 
-                                                {/* Items Loop - Consistent Vertical Slots */}
-                                                <div className="flex flex-col gap-[2px] w-full relative">
-                                                    {virtualUnits.map((unit, idx) => {
-                                                        const dayStatus = getItemDayStatus(unit, date);
+                                                    {/* Items Loop - Consistent Vertical Slots */}
+                                                    <div className="flex flex-col gap-[2.5px] w-full relative">
+                                                        {virtualUnits.map((unit, idx) => {
+                                                            const dayStatus = getItemDayStatus(unit, date);
 
-                                                        // Continuity Logic
-                                                        const getStatusAt = (offset: number) => {
-                                                            const d = new Date(date);
-                                                            d.setDate(date.getDate() + offset);
-                                                            return getItemDayStatus(unit, d);
-                                                        };
-                                                        const prev = i > 0 && calendarDays[i - 1] ? getStatusAt(-1) : null;
-                                                        const next = i < calendarDays.length - 1 && calendarDays[i + 1] ? getStatusAt(1) : null;
+                                                            // Continuity Logic
+                                                            const getStatusAt = (offset: number) => {
+                                                                const d = new Date(date);
+                                                                d.setDate(date.getDate() + offset);
+                                                                return getItemDayStatus(unit, d);
+                                                            };
+                                                            const prev = i > 0 && calendarDays[i - 1] ? getStatusAt(-1) : null;
+                                                            const next = i < calendarDays.length - 1 && calendarDays[i + 1] ? getStatusAt(1) : null;
 
-                                                        let content = null;
-                                                        let bgClass = '';
+                                                            let content = null;
+                                                            let bgClass = '';
 
-                                                        // 1. BLOCKED (Physical)
-                                                        if (dayStatus.status === 'blocked') {
-                                                            if (dayStatus.color === 'purple') bgClass = 'bg-purple-500';
-                                                            else if (dayStatus.color === 'cyan') bgClass = 'bg-cyan-500';
-                                                            else if (dayStatus.color === 'orange') bgClass = 'bg-orange-500';
-                                                            else bgClass = 'bg-gray-400';
+                                                            // 1. BLOCKED (Physical)
+                                                            if (dayStatus.status === 'blocked') {
+                                                                const colorMap: Record<string, string> = {
+                                                                    'purple': 'bg-purple-600',
+                                                                    'cyan': 'bg-cyan-500',
+                                                                    'orange': 'bg-orange-500',
+                                                                    'gray': 'bg-gray-400'
+                                                                };
+                                                                bgClass = colorMap[dayStatus.color] || 'bg-gray-400';
 
-                                                            const samePrev = prev?.status === 'blocked' && prev?.label === dayStatus.label;
-                                                            const sameNext = next?.status === 'blocked' && next?.label === dayStatus.label;
+                                                                const isVisualStart = prev?.status !== 'blocked' || prev?.label !== dayStatus.label || date.getDay() === 0;
+                                                                const isVisualEnd = next?.status !== 'blocked' || next?.label !== dayStatus.label || date.getDay() === 6;
 
-                                                            const isStart = !samePrev;
-                                                            const isEnd = !sameNext;
+                                                                bgClass += ` text-white shadow-sm flex items-center justify-center relative z-10 whitespace-nowrap h-5
+                                                                    ${isVisualStart ? 'ml-1 rounded-l-md pl-1' : '-ml-[1px]'} 
+                                                                    ${isVisualEnd ? 'mr-1 rounded-r-md' : '-mr-[1px]'}
+                                                                    ${(!isVisualStart || !isVisualEnd) ? 'w-[calc(100%+2px)]' : 'w-[calc(100%-0.5rem)]'}
+                                                                `;
 
-                                                            bgClass += ` text-white shadow-sm flex items-center justify-center relative z-10
-                                                                ${isStart ? 'ml-1 rounded-l pl-0.5' : '-ml-[1px] rounded-l-none border-l-0'} 
-                                                                ${isEnd ? 'mr-1 rounded-r' : '-mr-[1px] rounded-r-none border-r-0'}
-                                                            `;
-
-                                                            if (isStart) {
-                                                                content = <span className="text-[8px] font-bold uppercase truncate px-1">Unid. {idx + 1} - {dayStatus.label}</span>;
+                                                                if (isVisualStart) {
+                                                                    content = <span className="text-[8px] font-black uppercase tracking-widest truncate px-1">Unid. {idx + 1} - {dayStatus.label}</span>;
+                                                                }
                                                             }
-                                                        }
-                                                        // 2. BOOKED (Contract)
-                                                        else if (dayStatus.status === 'booked' && dayStatus.contractId) {
-                                                            const connectPrev = prev?.status === 'booked' && prev?.contractId === dayStatus.contractId;
-                                                            const connectNext = next?.status === 'booked' && next?.contractId === dayStatus.contractId;
-                                                            const isStart = !connectPrev;
-                                                            const isEnd = !connectNext;
+                                                            // 2. BOOKED (Contract)
+                                                            else if (dayStatus.status === 'booked' && dayStatus.contractId) {
+                                                                const isVisualStart = prev?.status !== 'booked' || prev?.contractId !== dayStatus.contractId || date.getDay() === 0;
+                                                                const isVisualEnd = next?.status !== 'booked' || next?.contractId !== dayStatus.contractId || date.getDay() === 6;
 
-                                                            bgClass = `text-white shadow-sm flex items-center relative z-10
-                                                                ${isStart ? 'ml-1 rounded-l pl-1' : '-ml-[1px] rounded-l-none border-l-0'} 
-                                                                ${isEnd ? 'mr-1 rounded-r' : '-mr-[1px] rounded-r-none border-r-0'}
-                                                            `;
+                                                                const dynamicStyle = { backgroundColor: getContractColor(dayStatus.contractId || '') };
+                                                                const connectionStyles = `
+                                                                    ${isVisualStart ? 'ml-1 rounded-l-md pl-1.5' : '-ml-[1px]'} 
+                                                                    ${isVisualEnd ? 'mr-1 rounded-r-md' : '-mr-[1px]'}
+                                                                    ${(!isVisualStart || !isVisualEnd) ? 'w-[calc(100%+2px)]' : 'w-[calc(100%-0.5rem)]'}
+                                                                `;
 
-                                                            const dynamicStyle = { backgroundColor: getContractColor(dayStatus.contractId || '') };
+                                                                if (isVisualStart) {
+                                                                    content = <span className="text-[8px] font-black uppercase tracking-widest truncate">Unid. {idx + 1}</span>;
+                                                                }
 
-                                                            if (isStart) {
-                                                                content = <span className="text-[8px] font-bold truncate px-1">Unid. {idx + 1}</span>;
+                                                                return (
+                                                                    <div
+                                                                        key={unit.virtualId}
+                                                                        className={`text-[white] shadow-sm flex items-center relative z-10 whitespace-nowrap h-5 text-[10px] leading-none cursor-default transition-all hover:brightness-110 ${connectionStyles}`}
+                                                                        style={dynamicStyle}
+                                                                        title={`#${unit.virtualId}: ${dayStatus.label}`}
+                                                                    >
+                                                                        {content}
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            else {
+                                                                return <div key={unit.virtualId} className="h-5" />;
                                                             }
 
                                                             return (
-                                                                <div
-                                                                    key={unit.virtualId}
-                                                                    className={`h-6 text-[10px] leading-none ${bgClass} cursor-default`}
-                                                                    style={dynamicStyle}
-                                                                    title={`#${unit.virtualId}: ${dayStatus.label}`}
-                                                                >
+                                                                <div key={unit.virtualId} className={`h-5 text-[10px] leading-none ${bgClass} cursor-default transition-all hover:brightness-110`} title={`#${unit.virtualId}: ${dayStatus.label}`}>
                                                                     {content}
                                                                 </div>
                                                             );
-                                                        }
-                                                        else {
-                                                            return null;
-                                                        }
-
-                                                        return (
-                                                            <div key={unit.virtualId} className={`h-6 text-[10px] leading-none ${bgClass} cursor-default`} title={`#${unit.virtualId}: ${dayStatus.label}`}>
-                                                                {content}
-                                                            </div>
-                                                        );
-                                                    })}
+                                                        })}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -207,7 +207,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-4xl font-black text-navy tracking-tighter">
             DASHBOARD
-            <span className="text-transparent bg-clip-text bg-gradient-to-tr from-primary to-purple-500">.</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-tr from-primary to-purple-500 mr-1">.</span>
           </h1>
           <p className="text-gray-400 font-medium text-sm tracking-wide mt-0.5">Visão estratégica em tempo real</p>
         </div>
@@ -301,7 +301,7 @@ export default function Dashboard() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 600 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11 }} tickFormatter={(val) => `R$${val / 1000}k`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11 }} tickFormatter={(val) => `R$${val / 1000} k`} />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1B2A4E', border: 'none', borderRadius: '12px', color: '#fff' }}
                   itemStyle={{ color: '#fff', fontSize: '12px', fontWeight: 'bold' }}

@@ -82,6 +82,7 @@ export interface Contract {
     status: ContractStatus;
     statusColor: string;
     eventType: EventType;
+    eventDate: string; // The specific day of the event
     terms?: string;
 
     // Debutante Specifics
@@ -103,6 +104,12 @@ export interface Contract {
         firstRental: boolean; // Confecção Primeiro Aluguel
     };
 
+    // Generic/Normal Specifics
+    eventLocation?: string;
+    contact?: string;
+    guestRole?: 'Anfitrião' | 'Convidado';
+    isFirstRental?: boolean;
+
     // Financials
     paidAmount?: number;
     paymentMethod?: string;
@@ -111,6 +118,13 @@ export interface Contract {
     // Signatures (Base64)
     lesseeSignature?: string;
     attendantSignature?: string;
+    number?: number;
+
+    // Technical Details
+    fittingDate?: string;
+    fittingTime?: string;
+    measurements?: any; // Stores Client.measurements snapshot
+    observations?: string;
 }
 
 export type AppointmentType = 'Primeira Visita' | 'Prova de Traje' | 'Retirada' | 'Devolução' | 'Ajustes Finais' | 'Outro';

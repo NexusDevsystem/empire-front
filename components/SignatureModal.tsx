@@ -115,10 +115,6 @@ export default function SignatureModal({ isOpen, onClose, onSave, title }: Signa
                         </div>
                     </div>
 
-                    <div className="mt-4 flex items-center gap-2 justify-center text-gray-400">
-                        <span className="material-symbols-outlined text-sm">verified_user</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider">Documento com validade jurídica confirmada via Empire ERP</span>
-                    </div>
                 </div>
 
                 {/* Footer */}
@@ -143,8 +139,8 @@ export default function SignatureModal({ isOpen, onClose, onSave, title }: Signa
                             onClick={save}
                             disabled={isEmpty}
                             className={`px-10 py-4 rounded-2xl text-sm font-black text-white shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 uppercase tracking-widest ${isEmpty
-                                    ? 'bg-gray-200 cursor-not-allowed shadow-none'
-                                    : 'bg-primary hover:bg-blue-700 shadow-primary/20'
+                                ? 'bg-gray-200 cursor-not-allowed shadow-none'
+                                : 'bg-primary hover:bg-blue-700 shadow-primary/20'
                                 }`}
                         >
                             <span className="material-symbols-outlined">verified</span>

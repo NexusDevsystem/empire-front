@@ -49,7 +49,6 @@ interface AppContextType {
     currentView: string;
     navigateTo: (view: string) => void;
     showWizard: boolean;
-    openWizard: () => void;
     closeWizard: () => void;
 
     user: AuthUser | null;
@@ -68,6 +67,8 @@ interface AppContextType {
     addNotification: (notification: any) => Promise<void>;
     selectedContractId: string | null;
     setSelectedContractId: (id: string | null) => void;
+    wizardInitialData: { startDate?: string; endDate?: string; itemIds?: string[] } | null;
+    openWizard: (initialData?: { startDate?: string; endDate?: string; itemIds?: string[] }) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -171,6 +172,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
     const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
     const [showWizard, setShowWizard] = useState(false);
+    const [wizardInitialData, setWizardInitialData] = useState<{ startDate?: string; endDate?: string; itemIds?: string[] } | null>(null);
     const [user, setUser] = useState<AuthUser | null>(null);
     const [profile, setProfile] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -186,8 +188,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
-    const openWizard = () => setShowWizard(true);
-    const closeWizard = () => setShowWizard(false);
+    const openWizard = (initialData?: { startDate?: string; endDate?: string; itemIds?: string[] }) => {
+        if (initialData) {
+            setWizardInitialData(initialData);
+        } else {
+            setWizardInitialData(null);
+        }
+        setShowWizard(true);
+    };
+    const closeWizard = () => {
+        setShowWizard(false);
+        setWizardInitialData(null);
+    };
     const navigateTo = (view: string) => {
         setCurrentView(view);
         localStorage.setItem('empire_trajes_last_view', view);
@@ -202,7 +214,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     const userData = await authAPI.getMe();
                     setUser(userData);
                     setProfile(userData);
-                    await loadData();
+                    await loadData(userData.role);
                 } catch (error) {
                     localStorage.removeItem('token');
                     setIsLoading(false);
@@ -215,36 +227,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
         initAuth();
     }, []);
 
-    const loadData = async () => {
+    const loadData = async (userRole?: string) => {
         try {
-            const [itemsData, clientsData, employeesData, contractsData, appointmentsData, transactionsData] = await Promise.all([
-                itemsAPI.getAll(),
-                clientsAPI.getAll(),
-                employeesAPI.getAll(),
-                contractsAPI.getAll(),
-                appointmentsAPI.getAll(),
-                transactionsAPI.getAll()
+            // Basic data - Everyone can see
+            const [itemsData, clientsData, contractsData, appointmentsData] = await Promise.all([
+                itemsAPI.getAll().catch(err => { console.error('Items load error:', err); return []; }),
+                clientsAPI.getAll().catch(err => { console.error('Clients load error:', err); return []; }),
+                contractsAPI.getAll().catch(err => { console.error('Contracts load error:', err); return []; }),
+                appointmentsAPI.getAll().catch(err => { console.error('Appointments load error:', err); return []; })
             ]);
 
             setItems(itemsData.map(mapItemFromDB));
             setClients(clientsData.map(mapClientFromDB));
             setContracts(contractsData);
             setAppointments(appointmentsData.map(mapAppointmentFromDB));
-            setTransactions(transactionsData);
 
-            // Map employees
-            setEmployees(employeesData.map((e: any) => ({
-                id: e.id,
-                name: e.name,
-                email: e.email,
-                role: e.role,
-                phone: '',
-                admissionDate: e.created_at,
-                status: 'Ativo',
-                avatar: e.avatar_url
-            })));
+            // Restricted data - Check role
+            const role = userRole || profile?.role || user?.role;
+            if (role === 'admin' || role === 'gerente') {
+                try {
+                    const [employeesData, transactionsData] = await Promise.all([
+                        employeesAPI.getAll(),
+                        transactionsAPI.getAll()
+                    ]);
+
+                    setTransactions(transactionsData);
+                    setEmployees(employeesData.map((e: any) => ({
+                        id: e.id,
+                        name: e.name,
+                        email: e.email,
+                        role: e.role,
+                        phone: '',
+                        admissionDate: e.created_at,
+                        status: 'Ativo',
+                        avatar: e.avatar_url
+                    })));
+                } catch (error) {
+                    console.error('Error loading restricted management data:', error);
+                }
+            }
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('Core data load error:', error);
         } finally {
             setIsLoading(false);
         }
@@ -265,7 +288,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setProfile(authUser);
             console.log('[AppContext] User state updated');
 
-            await loadData();
+            await loadData(authUser.role);
             console.log('[AppContext] loadData completed');
         } catch (error) {
             console.error('[AppContext] signIn error', error);
@@ -278,7 +301,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('token', token);
         setUser(authUser);
         setProfile(authUser);
-        await loadData();
+        await loadData(authUser.role);
     };
 
     const signOut = async () => {
@@ -446,10 +469,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Physical status blocking (applies to all units of this ID)
         if (item.status !== 'Disponível' && item.status !== 'Reservado' && item.status !== 'Alugado') return false;
 
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        start.setHours(0, 0, 0, 0);
-        end.setHours(0, 0, 0, 0);
+        const requestedStart = new Date(startDate);
+        const requestedEnd = new Date(endDate);
+        requestedStart.setHours(0, 0, 0, 0);
+        requestedEnd.setHours(0, 0, 0, 0);
+
+        const sanitationBufferDays = 2;
+        const bufferTime = sanitationBufferDays * 24 * 60 * 60 * 1000;
 
         const rentedInPeriod = contracts.reduce((count, c) => {
             if (excludeContractId && c.id === excludeContractId) return count;
@@ -460,7 +486,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             cStart.setHours(0, 0, 0, 0);
             cEnd.setHours(0, 0, 0, 0);
 
-            const overlaps = !(end < cStart || start > cEnd);
+            // Apply sanitation buffer to existing contract end date
+            const cEndWithBuffer = new Date(cEnd.getTime() + bufferTime);
+
+            const overlaps = !(requestedEnd < cStart || requestedStart > cEndWithBuffer);
             if (!overlaps) return count;
 
             // Count occurrences of this item ID in the contract
@@ -516,7 +545,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         markAsRead,
         addNotification,
         selectedContractId,
-        setSelectedContractId
+        setSelectedContractId,
+        wizardInitialData
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

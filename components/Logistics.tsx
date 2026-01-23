@@ -91,7 +91,7 @@ export default function Logistics() {
     const handleReceiveItem = (itemId: string, itemName: string, contractId: string) => {
         // 1. Update Item Status
         updateItem(itemId, { status: 'Devolução', statusColor: 'orange' });
-        showToast('info', `${itemName} recebido. Enviado para Triagem.`);
+        showToast('info', `${itemName} recebido.Enviado para Triagem.`);
 
         // 2. Check Smart Finish (Auto-Finalize Contract)
         const contract = contracts.find(c => c.id === contractId);
@@ -114,7 +114,7 @@ export default function Logistics() {
 
     const handleMoveTo = (itemId: string, status: ItemStatus, color: string, locationName: string) => {
         updateItem(itemId, { status: status, statusColor: color });
-        showToast('success', `Item movido para ${locationName}`);
+        showToast('success', `Item movido para ${locationName} `);
     };
 
     const handleRestock = (itemId: string) => {
@@ -137,7 +137,7 @@ export default function Logistics() {
             : ['Devolução', 'Na Lavanderia', 'No Atelier', 'Disponível'].includes(item.status);
 
         return (
-            <div key={`${contract.id}-${item.id}`} className={`bg-white p-3 md:p-4 rounded-2xl border ${isDone ? 'border-green-100 bg-green-50/30' : 'border-gray-100'} shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group transition-all`}>
+            <div key={`${contract.id}-${item.id}`} className={`bg-white p-3 md:p-4 rounded-2xl border ${isDone ? 'border-green-100 bg-green-50/30' : 'border-gray-100'} shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 group transition-all`}>
                 <div className="flex gap-3 md:gap-4 items-center w-full sm:w-auto">
                     <div className="size-14 md:size-16 rounded-xl bg-cover bg-center border border-gray-100 shadow-sm shrink-0" style={{ backgroundImage: `url('${item.img}')` }}></div>
                     <div className="min-w-0 flex-1">
@@ -161,7 +161,8 @@ export default function Logistics() {
                             px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all flex items-center justify-center gap-2 w-full sm:w-auto active:scale-95
                             ${action === 'pickup'
                                 ? 'bg-navy text-white shadow-navy/20 hover:bg-primary'
-                                : 'bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600'}
+                                : 'bg-orange-500 text-white shadow-orange-500/20 hover:bg-orange-600'
+                            }
                         `}
                     >
                         <span className="material-symbols-outlined text-lg">
@@ -270,13 +271,14 @@ export default function Logistics() {
                                 className={`
                                     flex items-center gap-2 px-4 md:px-6 py-3 border-b-2 font-black text-[10px] md:text-xs tracking-widest uppercase transition-all whitespace-nowrap rounded-t-xl
                                     ${activeTab === tab.id
-                                        ? `border-${tab.color}-500 text-${tab.color}-600 bg-${tab.color}-50/30`
-                                        : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'}
+                                        ? `border-${tab.color}-500 text-${tab.color}-600 bg-${tab.color}-50/10`
+                                        : 'border-transparent text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                                    }
                                 `}
                             >
-                                <span className={`material-symbols-outlined text-lg ${activeTab === tab.id ? '' : 'opacity-70'}`}>{tab.icon}</span>
-                                <span className="">{tab.label}</span>
-                                <span className={`ml-1 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === tab.id ? `bg-${tab.color}-100/50 text-${tab.color}-700` : 'bg-gray-100 text-gray-500'} font-black`}>
+                                <span className="material-symbols-outlined text-lg">{tab.icon}</span>
+                                <span>{tab.label}</span>
+                                <span className={`ml-1 px-2 py-0.5 rounded-lg text-[10px] ${activeTab === tab.id ? `bg-${tab.color}-100 text-${tab.color}-700` : 'bg-gray-100 text-gray-500'} font-black`}>
                                     {items.filter(i => {
                                         if (tab.id === 'triagem') return i.status === 'Devolução';
                                         if (tab.id === 'lavanderia') return i.status === 'Na Lavanderia';

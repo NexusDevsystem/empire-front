@@ -21,6 +21,7 @@ export default function Agenda() {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [isApptModalOpen, setIsApptModal] = useState(false);
     const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false); // Mobile Modal State
+    const [filterCategory, setFilterCategory] = useState<string>('Todos');
 
     // Delete Modal State
     const [isDeleteApptModalOpen, setIsDeleteApptModalOpen] = useState(false);
@@ -74,19 +75,37 @@ export default function Agenda() {
         return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
     };
 
+    // Get unique categories from items
+    const categories = useMemo(() => {
+        const types = items.map(i => i.type).filter(Boolean);
+        return ['Todos', ...Array.from(new Set(types))];
+    }, [items]);
+
     const getCalendarDays = useMemo(() => {
+        const year = viewStartDate.getFullYear();
+        const month = viewStartDate.getMonth();
+
         const daysInMonth = getDaysInMonth(viewStartDate);
         const firstDay = getFirstDayOfMonth(viewStartDate);
         const days = [];
 
-        // Padding for previous month
-        for (let i = 0; i < firstDay; i++) {
-            days.push(null);
+        // Previous month padding
+        const prevMonthContainer = new Date(year, month, 0);
+        const daysInPrevMonth = prevMonthContainer.getDate();
+        for (let i = firstDay - 1; i >= 0; i--) {
+            days.push(new Date(year, month - 1, daysInPrevMonth - i));
         }
 
-        // Days of current month
+        // Current month days
         for (let i = 1; i <= daysInMonth; i++) {
-            days.push(new Date(viewStartDate.getFullYear(), viewStartDate.getMonth(), i));
+            days.push(new Date(year, month, i));
+        }
+
+        // Next month padding (Fixed grid of 42 cells = 6 weeks)
+        const totalCells = 42;
+        const remaining = totalCells - days.length;
+        for (let i = 1; i <= remaining; i++) {
+            days.push(new Date(year, month + 1, i));
         }
 
         return days;
@@ -94,8 +113,19 @@ export default function Agenda() {
 
     // Derived Contracts for Calendar
     const calendarContracts = useMemo(() => {
-        return contracts.filter(c => c.status === 'Ativo' || c.status === 'Agendado');
-    }, [contracts]);
+        return contracts.filter(c => {
+            const isStatusValid = c.status === 'Ativo' || c.status === 'Agendado';
+            if (!isStatusValid) return false;
+
+            if (filterCategory === 'Todos') return true;
+
+            // Check if any item in the contract matches the selected category
+            return c.items.some(itemId => {
+                const item = items.find(i => i.id === itemId);
+                return item?.type === filterCategory;
+            });
+        });
+    }, [contracts, items, filterCategory]);
 
     // Derived Appointments for Calendar
     const calendarAppointments = useMemo(() => {
@@ -474,8 +504,8 @@ export default function Agenda() {
                             <span className="material-symbols-outlined">chevron_left</span>
                         </button>
                         <div className="flex flex-col items-center px-4">
-                            <span className="text-xs md:text-sm font-bold text-navy capitalize whitespace-nowrap">
-                                {viewStartDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+                            <span className="text-xl font-black text-navy capitalize tracking-tight">
+                                {viewStartDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                             </span>
                         </div>
                         <button onClick={() => shiftDate(30)} className="size-9 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-gray-600 transition-all">
@@ -485,6 +515,21 @@ export default function Agenda() {
                         <button onClick={goToToday} className="px-4 py-1.5 text-xs font-bold text-navy hover:bg-white hover:shadow-sm rounded-lg transition-all">
                             Hoje
                         </button>
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="relative group w-full sm:w-48">
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => setFilterCategory(e.target.value)}
+                            className="w-full h-12 pl-10 pr-10 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all outline-none appearance-none font-bold text-navy text-xs cursor-pointer shadow-sm"
+                        >
+                            {categories.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px]">filter_list</span>
+                        <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px] pointer-events-none">expand_more</span>
                     </div>
 
                     {/* Action Button */}
@@ -541,7 +586,6 @@ export default function Agenda() {
 
                                     const dayAppts = calendarAppointments.filter(a => a.date === dateStr);
 
-                                    // Gapless Grid Cell
                                     return (
                                         <div
                                             key={i}
@@ -551,12 +595,21 @@ export default function Agenda() {
                                                     setIsMobileDetailOpen(true);
                                                 }
                                             }}
-                                            className={`bg-white border-r border-b relative flex flex-col transition-all hover:bg-gray-50 cursor-pointer min-h-[120px] ${isToday ? 'bg-primary/5' : ''} ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : ''}`}
+                                            className={`
+                                                bg-white border-r border-b relative flex flex-col transition-all hover:bg-gray-50 cursor-pointer min-h-[120px] 
+                                                ${isToday ? 'bg-primary/5' : ''} 
+                                                ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : ''}
+                                                ${date.getMonth() !== viewStartDate.getMonth() ? 'opacity-40 grayscale-[0.5]' : ''}
+                                            `}
                                         >
                                             {/* Date Number - Standard Flow */}
                                             <div className="flex justify-between items-center p-2">
-                                                <span className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-gray-400'}`}>
-                                                    {date.getDate()}
+                                                <span className={`text-[11px] font-bold ${isToday ? 'text-primary' : (date.getMonth() !== viewStartDate.getMonth() ? 'text-gray-300' : 'text-gray-400')}`}>
+                                                    {date.getDate()} {date.getDate() === 1 && (
+                                                        <span className="ml-1 uppercase text-[9px]">
+                                                            {date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </div>
 
@@ -618,6 +671,10 @@ export default function Agenda() {
                                                                     #{c.id.split('-')[2]} {c.items.length > 0 ? `• ${items.find(it => it.id === c.items[0])?.name}` : ''}
                                                                 </span>
                                                             )}
+                                                            {isEnd && (
+                                                                <div className="ml-auto mr-1.5 size-1.5 rounded-full bg-white/60 shadow-sm shrink-0 animate-in zoom-in duration-300" />
+                                                            )}
+
                                                         </div>
                                                     );
                                                 })}

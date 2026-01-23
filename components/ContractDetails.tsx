@@ -3,6 +3,7 @@ import { Contract, Client, Item } from '../types';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
+import SignatureModal from './SignatureModal';
 import { getContractColor } from '../utils/colorUtils';
 
 interface ContractDetailsProps {
@@ -14,9 +15,11 @@ interface ContractDetailsProps {
 }
 
 export default function ContractDetails({ contract, client, items, onClose, onPrint }: ContractDetailsProps) {
-    const { updateContractStatus, updateItem } = useApp();
+    const { updateContractStatus, updateItem, updateContract } = useApp();
     const { showToast } = useToast();
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+    const [sigType, setSigType] = useState<'lessee' | 'attendant'>('lessee');
 
     const handleCancelContract = () => {
         // 1. Update Contract Status
@@ -29,6 +32,24 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
 
         showToast('info', 'Contrato cancelado e itens liberados.');
         onClose();
+    };
+
+    const handleOpenSig = (type: 'lessee' | 'attendant') => {
+        setSigType(type);
+        setIsSignatureModalOpen(true);
+    };
+
+    const handleSaveSig = async (data: string) => {
+        try {
+            if (sigType === 'lessee') {
+                await updateContract(contract.id, { lesseeSignature: data });
+            } else {
+                await updateContract(contract.id, { attendantSignature: data });
+            }
+            showToast('success', `Assinatura do ${sigType === 'lessee' ? 'cliente' : 'atendente'} salva com sucesso!`);
+        } catch (error) {
+            showToast('error', 'Erro ao salvar assinatura.');
+        }
     };
 
     const statusColors = {
@@ -51,7 +72,7 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                     <div>
                         <h2 className="text-2xl font-black text-navy">Detalhes do Contrato</h2>
-                        <p className="text-gray-400 text-sm font-medium">#{contract.id}</p>
+                        <p className="text-gray-400 text-sm font-medium">#{contract.number || contract.id}</p>
                     </div>
                     <button onClick={onClose} className="size-10 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-navy hover:shadow-md transition-all">
                         <span className="material-symbols-outlined">close</span>
@@ -76,9 +97,9 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
 
                     {/* Client Info */}
                     <section>
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
                             <span className="material-symbols-outlined text-sm">person</span>
-                            Dados do Cliente
+                            {contract.eventType === 'Debutante' ? 'Dados do Responsável' : 'Dados do Cliente'}
                         </h3>
                         <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-4">
                             <div
@@ -99,9 +120,27 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                                         {client.email}
                                     </div>
                                     {client.cpf && (
-                                        <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-gray-600 md:col-span-2">
+                                        <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-gray-600">
                                             <span className="material-symbols-outlined text-[16px] text-gray-400">badge</span>
                                             CPF: {client.cpf}
+                                        </div>
+                                    )}
+                                    {client.rg && (
+                                        <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-gray-600">
+                                            <span className="material-symbols-outlined text-[16px] text-gray-400">id_card</span>
+                                            RG: {client.rg}
+                                        </div>
+                                    )}
+                                    {client.birthDate && (
+                                        <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-gray-600">
+                                            <span className="material-symbols-outlined text-[16px] text-gray-400">cake</span>
+                                            Nasc: {new Date(client.birthDate).toLocaleDateString('pt-BR')}
+                                        </div>
+                                    )}
+                                    {client.address && (
+                                        <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-gray-600 md:col-span-2">
+                                            <span className="material-symbols-outlined text-[16px] text-gray-400">location_on</span>
+                                            {client.address}, {client.neighborhood} - {client.city}/{client.state}
                                         </div>
                                     )}
                                 </div>
@@ -109,36 +148,173 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                         </div>
                     </section>
 
+                    {/* Debutante Info (If applicable) */}
+                    {contract.eventType === 'Debutante' ? (
+                        <section>
+                            <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm">celebration</span>
+                                Dados da Debutante
+                            </h3>
+                            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-3">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Nome</p>
+                                        <p className="font-bold text-navy">{contract.debutanteDetails?.name || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Data Nasc.</p>
+                                        <p className="font-bold text-navy">{contract.debutanteDetails?.birthDate ? new Date(contract.debutanteDetails.birthDate).toLocaleDateString('pt-BR') : '-'}</p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Tema</p>
+                                        <p className="font-bold text-navy">{contract.debutanteDetails?.theme || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Local</p>
+                                        <p className="font-bold text-navy">{contract.debutanteDetails?.eventLocation || '-'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    ) : (
+                        <section>
+                            <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                                <span className="material-symbols-outlined text-sm">event_note</span>
+                                Informações Complementares
+                            </h3>
+                            <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Local do Evento</p>
+                                        <p className="font-bold text-navy">{contract.eventLocation || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black">Contato Evento</p>
+                                        <p className="font-bold text-navy">{contract.contact || '-'}</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-4 pt-2 border-t border-gray-50">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`material-symbols-outlined text-lg ${contract.guestRole === 'Anfitrião' ? 'text-primary' : 'text-gray-300'}`}>
+                                            {contract.guestRole === 'Anfitrião' ? 'stars' : 'ads_click'}
+                                        </span>
+                                        <span className={`text-[11px] font-bold uppercase ${contract.guestRole === 'Anfitrião' ? 'text-navy' : 'text-gray-400'}`}>
+                                            Anfitrião
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`material-symbols-outlined text-lg ${contract.guestRole === 'Convidado' ? 'text-primary' : 'text-gray-300'}`}>
+                                            {contract.guestRole === 'Convidado' ? 'check_circle' : 'ads_click'}
+                                        </span>
+                                        <span className={`text-[11px] font-bold uppercase ${contract.guestRole === 'Convidado' ? 'text-navy' : 'text-gray-400'}`}>
+                                            Convidado
+                                        </span>
+                                    </div>
+                                    {contract.isFirstRental && (
+                                        <div className="flex items-center gap-2 ml-auto bg-primary/5 px-3 py-1 rounded-lg border border-primary/10">
+                                            <span className="material-symbols-outlined text-primary text-lg">new_releases</span>
+                                            <span className="text-[10px] font-black uppercase text-primary tracking-tighter">1º Aluguel</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+                    )}
+
                     {/* Rental Details */}
                     <section>
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
                             <span className="material-symbols-outlined text-sm">event</span>
                             Detalhes da Locação
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <p className="text-xs text-gray-500 mb-1">Data de Retirada</p>
+                                <p className="text-xs text-gray-500 mb-1">Retirada</p>
                                 <p className="text-lg font-bold text-navy">{new Date(contract.startDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                             </div>
+                            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
+                                <p className="text-xs text-primary/70 mb-1 font-bold">Data do Evento</p>
+                                <p className="text-lg font-bold text-primary">{contract.eventDate ? new Date(contract.eventDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'}</p>
+                            </div>
                             <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <p className="text-xs text-gray-500 mb-1">Data de Devolução</p>
+                                <p className="text-xs text-gray-500 mb-1">Devolução</p>
                                 <p className="text-lg font-bold text-navy">{new Date(contract.endDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
                             </div>
-                            <div className="md:col-span-2 p-4 bg-navy/5 rounded-2xl border border-navy/10 flex justify-between items-center">
+                        </div>
+                    </section>
+
+                    {/* Technical Details (Fitting, Measurements & Observations) */}
+                    <section className="animate-in fade-in slide-in-from-top-4 duration-500">
+                        <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">straighten</span>
+                            Detalhes Técnicos
+                        </h3>
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                            <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex flex-col sm:flex-row justify-between gap-4">
                                 <div>
-                                    <p className="text-xs text-navy/70 uppercase font-bold text-nowrap">Valor Total</p>
-                                    <p className="text-xl md:text-2xl font-black text-navy text-nowrap">R$ {contract.totalValue.toFixed(2)}</p>
+                                    <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Prova de Roupa</p>
+                                    <div className="flex items-center gap-2 text-navy">
+                                        <span className="material-symbols-outlined text-lg text-primary">schedule</span>
+                                        <span className="font-bold">
+                                            {contract.fittingDate ? new Date(contract.fittingDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não agendada'}
+                                            {contract.fittingTime && ` às ${contract.fittingTime}`}
+                                        </span>
+                                    </div>
                                 </div>
-                                <span className="px-3 py-1 bg-white rounded-lg text-xs font-bold border border-gray-100 shadow-sm text-navy ml-4">
-                                    {contract.items.length} Itens
-                                </span>
+                                {contract.paymentMethod && (
+                                    <div className="text-right">
+                                        <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Forma de Pagamento</p>
+                                        <span className="px-3 py-1 bg-white rounded-lg text-xs font-bold border border-gray-200 shadow-sm text-navy uppercase tracking-wider">
+                                            {contract.paymentMethod}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Measurements Snapshot */}
+                                <div>
+                                    <p className="text-[10px] text-gray-400 uppercase font-black mb-3">Medidas no Contrato</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {contract.measurements ? (
+                                            Object.entries(contract.measurements).map(([key, value]) => {
+                                                const labels: Record<string, string> = {
+                                                    height: 'Altura', weight: 'Peso', shoeSize: 'Sapato',
+                                                    shirtSize: 'Camisa', pantsSize: 'Calça', jacketSize: 'Paletó',
+                                                    chest: 'Tórax', waist: 'Cintura', hips: 'Quadril',
+                                                    shoulder: 'Ombro', sleeve: 'Manga', inseam: 'Entrepernas',
+                                                    neck: 'Pescoço'
+                                                };
+                                                if (!labels[key]) return null;
+                                                return (
+                                                    <div key={key} className="flex justify-between items-center p-2 bg-gray-50/50 rounded-lg border border-gray-100">
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{labels[key]}</span>
+                                                        <span className="text-xs font-black text-navy">{String(value) || '--'}</span>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            <p className="text-xs text-gray-400 italic col-span-2">Sem medidas registradas.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Observations */}
+                                <div className="flex flex-col">
+                                    <p className="text-[10px] text-gray-400 uppercase font-black mb-3 text-right">Observações</p>
+                                    <div className="flex-1 p-3 bg-blue-50/30 rounded-xl border border-blue-50 text-xs text-navy/80 italic leading-relaxed">
+                                        {contract.observations || 'Nenhuma observação interna.'}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>
 
                     {/* Items List */}
                     <section>
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
                             <span className="material-symbols-outlined text-sm">checkroom</span>
                             Itens do Contrato
                         </h3>
@@ -163,35 +339,41 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
 
                     {/* Signatures */}
                     <section>
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
                             <span className="material-symbols-outlined text-sm">ink_pen</span>
                             Assinaturas
                         </h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div className={`p-4 rounded-xl border ${contract.lesseeSignature ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <div
+                                onClick={() => handleOpenSig('lessee')}
+                                className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${contract.lesseeSignature ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100 hover:border-primary/30'}`}
+                            >
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className={`material-symbols-outlined text-sm ${contract.lesseeSignature ? 'text-emerald-600' : 'text-gray-400'}`}>
                                         {contract.lesseeSignature ? 'check_circle' : 'pending'}
                                     </span>
-                                    <span className="text-xs font-bold uppercase text-gray-600">Cliente</span>
+                                    <span className="text-xs font-bold uppercase text-gray-600">Cliente / Locatário</span>
                                 </div>
                                 {contract.lesseeSignature ? (
                                     <img src={contract.lesseeSignature} alt="Assinatura Cliente" className="h-12 object-contain" />
                                 ) : (
-                                    <p className="text-xs text-gray-400 italic">Pendente</p>
+                                    <p className="text-xs text-gray-400 italic">Clique para assinar</p>
                                 )}
                             </div>
-                            <div className={`p-4 rounded-xl border ${contract.attendantSignature ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <div
+                                onClick={() => handleOpenSig('attendant')}
+                                className={`p-4 rounded-xl border cursor-pointer transition-all hover:shadow-md ${contract.attendantSignature ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100 hover:border-primary/30'}`}
+                            >
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className={`material-symbols-outlined text-sm ${contract.attendantSignature ? 'text-emerald-600' : 'text-gray-400'}`}>
                                         {contract.attendantSignature ? 'check_circle' : 'pending'}
                                     </span>
-                                    <span className="text-xs font-bold uppercase text-gray-600">Atendente</span>
+                                    <span className="text-xs font-bold uppercase text-gray-600">Representante Empire</span>
                                 </div>
                                 {contract.attendantSignature ? (
                                     <img src={contract.attendantSignature} alt="Assinatura Atendente" className="h-12 object-contain" />
                                 ) : (
-                                    <p className="text-xs text-gray-400 italic">Pendente</p>
+                                    <p className="text-xs text-gray-400 italic">Clique para assinar</p>
                                 )}
                             </div>
                         </div>
@@ -200,28 +382,54 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 md:p-6 border-t border-gray-200 bg-white flex flex-col sm:flex-row gap-3 shrink-0">
+                <div className="p-4 md:p-6 border-t border-gray-200 bg-white flex flex-col sm:flex-row gap-3">
                     {(contract.status === 'Agendado' || contract.status === 'Ativo') && (
                         <button
                             onClick={() => setIsCancelModalOpen(true)}
-                            className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                            className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold bg-white text-red-500 border border-red-100 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 text-sm"
                         >
-                            <span className="material-symbols-outlined">block</span>
+                            <span className="material-symbols-outlined text-sm">block</span>
                             Cancelar
                         </button>
                     )}
 
                     <div className="hidden sm:block flex-1"></div>
 
-                    <button
-                        onClick={onPrint}
-                        className="w-full sm:w-auto px-8 py-3 rounded-xl font-bold bg-navy text-white shadow-lg shadow-navy/20 hover:bg-navy/90 hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
-                    >
-                        <span className="material-symbols-outlined">print</span>
-                        Imprimir / Assinar
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                        <button
+                            onClick={() => handleOpenSig('lessee')}
+                            className={`px-6 py-3 rounded-xl font-bold border transition-all flex items-center justify-center gap-2 text-sm ${contract.lesseeSignature && contract.attendantSignature
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                : 'bg-white text-navy border-navy/20 hover:bg-gray-50'
+                                }`}
+                        >
+                            <span className="material-symbols-outlined text-sm">
+                                {contract.lesseeSignature && contract.attendantSignature ? 'check_circle' : 'ink_pen'}
+                            </span>
+                            {contract.lesseeSignature && contract.attendantSignature ? 'Contrato Assinado' : 'Coletar Assinatura'}
+                        </button>
+
+                        <button
+                            onClick={onPrint}
+                            className={`px-6 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 text-sm ${contract.lesseeSignature && contract.attendantSignature
+                                ? 'bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700'
+                                : 'bg-navy shadow-navy/20 hover:scale-[1.02] active:scale-95'
+                                }`}
+                        >
+                            <span className="material-symbols-outlined text-sm">visibility</span>
+                            Visualizar Contrato
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Signature Modal Integration */}
+            <SignatureModal
+                isOpen={isSignatureModalOpen}
+                onClose={() => setIsSignatureModalOpen(false)}
+                onSave={handleSaveSig}
+                title={sigType === 'lessee' ? 'Assinatura do Cliente / Locatário' : 'Assinatura Representante Empire'}
+            />
 
             {/* Cancel Modal */}
             <ConfirmationModal

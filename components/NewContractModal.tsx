@@ -20,7 +20,7 @@ import { maskCPF, maskPhone, maskCEP } from '../utils/maskUtils';
 import { useToast } from '../contexts/ToastContext';
 
 export default function NewContractModal({ isOpen, onClose }: NewContractModalProps) {
-    const { clients, items, contracts, addContract, addClient, isItemAvailable, navigateTo, setSelectedContractId } = useApp();
+    const { clients, items, contracts, addContract, addClient, isItemAvailable, navigateTo, setSelectedContractId, wizardInitialData } = useApp();
     const { showToast } = useToast();
     const [step, setStep] = useState(1);
     const [showReminder, setShowReminder] = useState(false);
@@ -37,13 +37,45 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     const [startTime, setStartTime] = useState('09:00');
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('18:00');
+    const [eventDate, setEventDate] = useState('');
     const [eventType, setEventType] = useState<import('../types').EventType>('Casamento');
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
     const [discount, setDiscount] = useState('0');
     const [notes, setNotes] = useState('');
     const [paidAmount, setPaidAmount] = useState<number>(0);
     const [paymentMethod, setPaymentMethod] = useState<string>('Pix');
+
+    // Fitting and measurements
+    const [fittingDate, setFittingDate] = useState('');
+    const [fittingTime, setFittingTime] = useState('09:00');
+    const [contractMeasurements, setContractMeasurements] = useState<any>(null);
+
+    // Normal / Generic Specifics
+    const [eventLocation, setEventLocation] = useState('');
+    const [contact, setContact] = useState('');
+    const [guestRole, setGuestRole] = useState<'Anfitrião' | 'Convidado'>('Anfitrião');
+    const [isFirstRental, setIsFirstRental] = useState(false);
+
     const searchRef = useRef<HTMLDivElement>(null);
+
+    // Initialize from Wizard Initial Data
+    useEffect(() => {
+        if (isOpen && wizardInitialData) {
+            if (wizardInitialData.startDate) setStartDate(wizardInitialData.startDate);
+            if (wizardInitialData.endDate) setEndDate(wizardInitialData.endDate);
+            if (wizardInitialData.itemIds) {
+                setSelectedItemIds(wizardInitialData.itemIds);
+                setStep(2); // Jump to catalog step if items are pre-selected
+            }
+        } else if (isOpen && !wizardInitialData) {
+            // Reset if no initial data
+            setStartDate('');
+            setEndDate('');
+            setEventDate('');
+            setSelectedItemIds([]);
+            setStep(1);
+        }
+    }, [isOpen, wizardInitialData]);
 
     // Close suggestions on click outside
     useEffect(() => {
@@ -62,6 +94,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
         phone: '',
         email: '',
         cpf: '',
+        rg: '',
         address: '',
         neighborhood: '',
         city: '',
@@ -104,6 +137,12 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     // Catalog Filter
     const [catFilter, setCatFilter] = useState('Todos');
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Dynamic Categories for Filter
+    const availableCategories = useMemo(() => {
+        const cats = Array.from(new Set(items.map(i => i.type).filter(Boolean)));
+        return ['Todos', ...cats.sort()];
+    }, [items]);
 
     // Logic
     // Product Grouping Logic
@@ -213,6 +252,10 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
         setClientSearch(client.name);
         setShowSuggestions(false);
         setIsCreatingNewClient(false);
+        // Pre-fill contract measurements with client's current measurements
+        if (client.measurements) {
+            setContractMeasurements(client.measurements);
+        }
     };
 
     const handleCreateNewClick = () => {
@@ -225,8 +268,8 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     const handleNext = async () => {
         if (step === 1) {
             // Common Validation for Step 1
-            if (!startDate || !endDate) {
-                showToast('error', 'Selecione as datas de início e fim.');
+            if (!startDate || !endDate || !eventDate) {
+                showToast('error', 'Selecione as datas de início, fim e do evento.');
                 return;
             }
 
@@ -243,12 +286,12 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                     const newClientObj: import('../types').Client = {
                         ...newClientDetails,
                         id: newId,
-                        initials: newClientDetails.name.slice(0, 2).toUpperCase(),
-                        rg: ''
+                        initials: newClientDetails.name.slice(0, 2).toUpperCase()
                     };
 
                     const savedClient = await addClient(newClientObj);
                     setClientId(savedClient.id);
+                    setContractMeasurements(newClientDetails.measurements);
                     setIsCreatingNewClient(false);
                     showToast('success', 'Cliente cadastrado com sucesso!');
                     setStep(2); // Manually move to next step after async
@@ -320,12 +363,22 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
             status: 'Agendado',
             statusColor: 'blue',
             eventType,
+            eventDate,
             terms: CONTRACT_CLAUSES[eventType] || '',
             paidAmount: paidAmount || 0,
             paymentMethod,
             balance: total - (paidAmount || 0),
             lesseeSignature: '',
-            ...(eventType === 'Debutante' ? { debutanteDetails, packageDetails } : {})
+            fittingDate,
+            fittingTime,
+            measurements: contractMeasurements || selectedClient?.measurements,
+            observations: notes,
+            ...(eventType === 'Debutante' ? { debutanteDetails, packageDetails } : {
+                eventLocation,
+                contact,
+                guestRole,
+                isFirstRental
+            })
         };
         setPendingContract(contract);
         setShowReminder(true);
@@ -386,7 +439,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                         <div className="max-w-xl mx-auto space-y-6 animate-in slide-in-from-right-8 duration-300">
                             <div className="flex flex-col gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Retirada</label>
+                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Retirada</label>
                                     <div className="flex gap-4">
                                         <div className="relative flex-1">
                                             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
@@ -399,7 +452,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Devolução Prevista</label>
+                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Devolução Prevista</label>
                                     <div className="flex gap-4">
                                         <div className="relative flex-1">
                                             <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
@@ -411,6 +464,62 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                         </div>
                                     </div>
                                 </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Data do Evento</label>
+                                    <div className="relative">
+                                        <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
+                                        <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">celebration</span>
+                                    </div>
+                                </div>
+
+                                {eventType !== 'Debutante' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Local do Evento</label>
+                                            <input
+                                                value={eventLocation}
+                                                onChange={e => setEventLocation(e.target.value)}
+                                                placeholder="Salão, Chácara, etc"
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Contato do Evento</label>
+                                            <input
+                                                value={contact}
+                                                onChange={e => setContact(e.target.value)}
+                                                placeholder="Nome ou Telefone"
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Tipo de Locação</label>
+                                            <div className="flex gap-4">
+                                                <button
+                                                    onClick={() => setGuestRole('Anfitrião')}
+                                                    className={`flex-1 py-3 rounded-xl border font-bold text-xs uppercase tracking-widest transition-all ${guestRole === 'Anfitrião' ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-white text-gray-400 border-gray-200 hover:border-primary/30'}`}
+                                                >
+                                                    Anfitrião
+                                                </button>
+                                                <button
+                                                    onClick={() => setGuestRole('Convidado')}
+                                                    className={`flex-1 py-3 rounded-xl border font-bold text-xs uppercase tracking-widest transition-all ${guestRole === 'Convidado' ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-white text-gray-400 border-gray-200 hover:border-primary/30'}`}
+                                                >
+                                                    Convidado
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 pt-6">
+                                            <button
+                                                onClick={() => setIsFirstRental(!isFirstRental)}
+                                                className={`size-6 rounded-lg border-2 flex items-center justify-center transition-all ${isFirstRental ? 'bg-primary border-primary text-white' : 'border-gray-200 bg-white'}`}
+                                            >
+                                                {isFirstRental && <span className="material-symbols-outlined text-sm font-black">check</span>}
+                                            </button>
+                                            <span className="text-xs font-bold text-navy uppercase tracking-wider">Confecção 1º Aluguel</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-2 relative" ref={searchRef}>
@@ -508,7 +617,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                         <div className="space-y-4">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nome Completo *</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Nome Completo *</label>
                                                     <input
                                                         value={newClientDetails.name}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, name: e.target.value })}
@@ -517,7 +626,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Telefone *</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Telefone *</label>
                                                     <input
                                                         value={newClientDetails.phone}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, phone: maskPhone(e.target.value) })}
@@ -526,12 +635,21 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">CPF</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">CPF</label>
                                                     <input
                                                         value={newClientDetails.cpf}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, cpf: maskCPF(e.target.value) })}
                                                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white"
                                                         placeholder="000.000.000-00"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">RG</label>
+                                                    <input
+                                                        value={newClientDetails.rg}
+                                                        onChange={e => setNewClientDetails({ ...newClientDetails, rg: e.target.value })}
+                                                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white"
+                                                        placeholder="00.000.000-0"
                                                     />
                                                 </div>
                                                 <div>
@@ -544,7 +662,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div className="md:col-span-2">
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Email</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Email</label>
                                                     <input
                                                         value={newClientDetails.email}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, email: e.target.value })}
@@ -557,7 +675,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                             {/* Simplified Address */}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="col-span-2">
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Endereço</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Endereço</label>
                                                     <input
                                                         value={newClientDetails.address}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, address: e.target.value })}
@@ -566,7 +684,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Bairro</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Bairro</label>
                                                     <input
                                                         value={newClientDetails.neighborhood}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, neighborhood: e.target.value })}
@@ -574,7 +692,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cidade</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Cidade</label>
                                                     <input
                                                         value={newClientDetails.city}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, city: e.target.value })}
@@ -582,7 +700,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Estado</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Estado</label>
                                                     <select
                                                         value={newClientDetails.state}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, state: e.target.value })}
@@ -595,7 +713,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     </select>
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">CEP</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">CEP</label>
                                                     <input
                                                         value={newClientDetails.zip}
                                                         onChange={e => handleCEPChange(e.target.value)}
@@ -605,9 +723,33 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                 </div>
                                             </div>
 
-                                            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 flex gap-2 items-center">
-                                                <span className="material-symbols-outlined text-blue-600 text-lg">info</span>
-                                                <p className="text-xs text-blue-800 font-medium">As medidas poderão ser cadastradas posteriormente no perfil do cliente.</p>
+                                            <div className="pt-4 border-t border-gray-100">
+                                                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-3 flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-base">straighten</span> Medidas (Opcional)
+                                                </label>
+                                                <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+                                                    {[
+                                                        { k: 'height', l: 'Altura' }, { k: 'weight', l: 'Peso' },
+                                                        { k: 'shoeSize', l: 'Sapato' }, { k: 'shirtSize', l: 'Camisa' },
+                                                        { k: 'pantsSize', l: 'Calça' }, { k: 'jacketSize', l: 'Paletó' },
+                                                        { k: 'neck', l: 'Pescoço' }, { k: 'chest', l: 'Tórax' },
+                                                        { k: 'waist', l: 'Cintura' }, { k: 'hips', l: 'Quadril' },
+                                                        { k: 'shoulder', l: 'Ombro' }, { k: 'sleeve', l: 'Manga' },
+                                                        { k: 'inseam', l: 'Entrepernas' }
+                                                    ].map((m) => (
+                                                        <div key={m.k}>
+                                                            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{m.l}</label>
+                                                            <input
+                                                                value={(newClientDetails.measurements as any)?.[m.k] || ''}
+                                                                onChange={e => setNewClientDetails({
+                                                                    ...newClientDetails,
+                                                                    measurements: { ...newClientDetails.measurements, [m.k]: e.target.value }
+                                                                })}
+                                                                className="w-full h-9 px-2 text-center rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none text-sm font-bold text-navy"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -615,7 +757,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-500 uppercase">Tipo de Evento</label>
+                                <label className="text-xs font-bold text-black uppercase">Tipo de Evento</label>
                                 <div className="relative">
                                     <select value={eventType} onChange={e => setEventType(e.target.value as any)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm appearance-none cursor-pointer">
                                         <option value="Casamento">Casamento</option>
@@ -637,31 +779,31 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome Debutante</label>
+                                            <label className="block text-xs font-bold text-black uppercase mb-1">Nome Debutante</label>
                                             <input value={debutanteDetails.name} onChange={e => setDebutanteDetails({ ...debutanteDetails, name: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Ex: Maria Eduarda" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Data Nascimento</label>
+                                            <label className="block text-xs font-bold text-black uppercase mb-1">Data Nascimento</label>
                                             <input type="date" value={debutanteDetails.birthDate} onChange={e => setDebutanteDetails({ ...debutanteDetails, birthDate: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tema da Festa</label>
+                                            <label className="block text-xs font-bold text-black uppercase mb-1">Tema da Festa</label>
                                             <input value={debutanteDetails.theme} onChange={e => setDebutanteDetails({ ...debutanteDetails, theme: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Ex: Paris, Realeza..." />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Cor Preferida</label>
+                                            <label className="block text-xs font-bold text-black uppercase mb-1">Cor Preferida</label>
                                             <input value={debutanteDetails.preferredColor} onChange={e => setDebutanteDetails({ ...debutanteDetails, preferredColor: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Ex: Rosa Gold" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Instagram</label>
+                                            <label className="block text-xs font-bold text-black uppercase mb-1">Instagram</label>
                                             <input value={debutanteDetails.instagram} onChange={e => setDebutanteDetails({ ...debutanteDetails, instagram: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="@usuario" />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Música Preferida</label>
+                                            <label className="block text-xs font-bold text-black uppercase mb-1">Música Preferida</label>
                                             <input value={debutanteDetails.preferredMusic} onChange={e => setDebutanteDetails({ ...debutanteDetails, preferredMusic: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Ex: Valsa..." />
                                         </div>
                                         <div className="col-span-1 md:col-span-2">
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Local do Evento</label>
+                                            <label className="block text-xs font-bold text-black uppercase mb-1">Local do Evento</label>
                                             <input value={debutanteDetails.eventLocation} onChange={e => setDebutanteDetails({ ...debutanteDetails, eventLocation: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Ex: Buffet Crystal..." />
                                         </div>
                                     </div>
@@ -711,8 +853,8 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                         <div className="flex flex-col h-full gap-4 animate-in slide-in-from-right-8 duration-300">
                             {/* Toolbar */}
                             <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                                <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-                                    {['Todos', 'Smoking', 'Terno', 'Fraque', 'Acessório'].map(cat => (
+                                <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 custom-scrollbar">
+                                    {availableCategories.map(cat => (
                                         <button key={cat} onClick={() => setCatFilter(cat)}
                                             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap ${catFilter === cat ? 'bg-navy text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                                             {cat}
@@ -855,6 +997,73 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+
+                                {/* Fitting and Technical Details */}
+                                <div className="space-y-6">
+                                    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                                        <h3 className="font-bold text-navy text-lg flex items-center gap-2 mb-4">
+                                            <span className="material-symbols-outlined text-primary">straighten</span>
+                                            Prova e Medidas
+                                        </h3>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Data da Prova</label>
+                                                    <div className="flex gap-2">
+                                                        <div className="relative flex-1">
+                                                            <input type="date" value={fittingDate} onChange={e => setFittingDate(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-primary/10 text-sm font-medium" />
+                                                            <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-gray-400 text-lg">calendar_today</span>
+                                                        </div>
+                                                        <div className="relative w-28">
+                                                            <input type="time" value={fittingTime} onChange={e => setFittingTime(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-primary/10 text-sm font-medium" />
+                                                            <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-gray-400 text-lg">schedule</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-start gap-3">
+                                                    <span className="material-symbols-outlined text-navy/40">info</span>
+                                                    <p className="text-[11px] text-gray-600 leading-relaxed">
+                                                        A prova é fundamental para garantir o ajuste perfeito. O horário sugerido é o de abertura da loja.
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <label className="text-xs font-bold text-black uppercase tracking-wider block">Resumo de Medidas</label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {[
+                                                        { label: 'Altura', key: 'height' },
+                                                        { label: 'Peso', key: 'weight' },
+                                                        { label: 'Sapato', key: 'shoeSize' },
+                                                        { label: 'Camisa', key: 'shirtSize' },
+                                                        { label: 'Calça', key: 'pantsSize' },
+                                                        { label: 'Paletó', key: 'jacketSize' },
+                                                        { label: 'Tórax', key: 'chest' },
+                                                        { label: 'Cintura', key: 'waist' },
+                                                        { label: 'Quadril', key: 'hips' },
+                                                        { label: 'Ombro', key: 'shoulder' },
+                                                        { label: 'Manga', key: 'sleeve' },
+                                                        { label: 'Entrepernas', key: 'inseam' },
+                                                        { label: 'Pescoço', key: 'neck' }
+                                                    ].map((m) => (
+                                                        <div key={m.key} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg border border-gray-100">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{m.label}</span>
+                                                            <input
+                                                                value={contractMeasurements?.[m.key] || ''}
+                                                                onChange={e => setContractMeasurements({ ...contractMeasurements, [m.key]: e.target.value })}
+                                                                className="w-12 text-right bg-transparent border-b border-gray-200 focus:border-primary outline-none text-xs font-black text-navy"
+                                                                placeholder="--"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <p className="text-[10px] text-gray-400 italic text-center italic">As medidas acima são um snapshot para este contrato.</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1025,38 +1234,40 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                         {step !== 3 && <span className="material-symbols-outlined text-sm">arrow_forward</span>}
                     </button>
                 </div>
-            </div>
+            </div >
 
             {/* Signature Reminder Modal */}
-            {showReminder && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
-                        <div className="size-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                            <span className="material-symbols-outlined text-3xl">ink_pen</span>
-                        </div>
-                        <h3 className="text-xl font-black text-navy mb-2">Reserva Criada!</h3>
-                        <p className="text-gray-500 mb-8">
-                            Não esqueça de colher a assinatura do cliente para formalizar o contrato.
-                        </p>
+            {
+                showReminder && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+                            <div className="size-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                                <span className="material-symbols-outlined text-3xl">ink_pen</span>
+                            </div>
+                            <h3 className="text-xl font-black text-navy mb-2">Reserva Criada!</h3>
+                            <p className="text-gray-500 mb-8">
+                                Não esqueça de colher a assinatura do cliente para formalizar o contrato.
+                            </p>
 
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={() => handleFinalize(true)}
-                                className="w-full py-3.5 rounded-xl font-bold bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                <span className="material-symbols-outlined">description</span>
-                                Ir para Assinatura (Contrato)
-                            </button>
-                            <button
-                                onClick={() => handleFinalize(false)}
-                                className="w-full py-3.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
-                            >
-                                Apenas Salvar e Fechar
-                            </button>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => handleFinalize(true)}
+                                    className="w-full py-3.5 rounded-xl font-bold bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/25 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                >
+                                    <span className="material-symbols-outlined">description</span>
+                                    Ir para Assinatura (Contrato)
+                                </button>
+                                <button
+                                    onClick={() => handleFinalize(false)}
+                                    className="w-full py-3.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                                >
+                                    Apenas Salvar e Fechar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

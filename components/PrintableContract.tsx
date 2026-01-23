@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Contract, Client, Item } from '../types';
 import { useApp } from '../contexts/AppContext';
 import SignatureModal from './SignatureModal';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface PrintableContractProps {
     contract: Contract;
@@ -11,252 +13,489 @@ interface PrintableContractProps {
 }
 
 export default function PrintableContract({ contract, client, items, onClose }: PrintableContractProps) {
-    // Current Date for signature
-    const today = new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
     const { updateContract, storeSettings } = useApp();
-    const [showSigModal, setShowSigModal] = useState(false);
-    const [sigType, setSigType] = useState<'lessee' | 'attendant'>('lessee');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const documentRef = useRef<HTMLDivElement>(null);
 
-    const handleOpenSig = (type: 'lessee' | 'attendant') => {
-        setSigType(type);
-        setShowSigModal(true);
-    };
+    const handleDownloadPDF = async () => {
+        if (!documentRef.current) return;
 
-    const handleSaveSig = (data: string) => {
-        if (sigType === 'lessee') {
-            updateContract(contract.id, { lesseeSignature: data });
-        } else {
-            updateContract(contract.id, { attendantSignature: data });
+        setIsGenerating(true);
+        try {
+            const element = documentRef.current;
+
+            // Temporary styles to ensure capture of natural height
+            const originalStyle = element.style.height;
+            element.style.height = 'auto';
+
+            const canvas = await html2canvas(element, {
+                scale: 3, // Higher quality for legal documents
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight,
+                scrollY: -window.scrollY,
+                x: 0,
+                y: 0
+            });
+
+            element.style.height = originalStyle;
+
+            const imgData = canvas.toDataURL('image/png', 1.0);
+
+            // Proporções oficiais A4 (mm)
+            const pageWidth = 210;
+            const pageHeight = 297;
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+
+            // Redimensionamento inteligente para encaixar na folha sem distorcer (espremer)
+            const widthRatio = pageWidth / canvas.width;
+            const heightRatio = pageHeight / canvas.height;
+            const ratio = Math.min(widthRatio, heightRatio); // Respeita o limite do menor eixo
+
+            const imgWidth = canvas.width * ratio;
+            const imgHeight = canvas.height * ratio;
+
+            // Centraliza o conteúdo na folha final
+            const x = (pageWidth - imgWidth) / 2;
+            const y = (pageHeight - imgHeight) / 2;
+
+            pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight, undefined, 'FAST');
+
+            pdf.save(`Contrato_${contract.id.split('-').pop()?.toUpperCase() || 'Empire'}.pdf`);
+        } catch (error) {
+            console.error('Erro ao gerar PDF:', error);
+            alert('Erro ao gerar o PDF. Tente novamente.');
+        } finally {
+            setIsGenerating(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center bg-gray-100/95 backdrop-blur-md overflow-y-auto no-scrollbar print-only print:p-0 print:block print:bg-white print:overflow-visible">
-            {/* Print Overlay Controls (Sticky on top) */}
-            <div className="sticky top-0 w-full flex justify-end gap-3 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm print:hidden z-50 shrink-0">
+        <div className="fixed inset-0 z-[99999] flex flex-col items-center bg-gray-100/95 backdrop-blur-md overflow-y-auto no-scrollbar">
+            {/* Print Overlay Controls */}
+            <div className="sticky top-0 w-full flex justify-end gap-3 p-4 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm z-[101] shrink-0">
                 <button
                     onClick={onClose}
-                    className="px-4 h-10 bg-white text-gray-700 font-bold rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 active:scale-95 transition-all text-sm"
+                    disabled={isGenerating}
+                    className="px-4 h-10 bg-white text-gray-700 font-bold rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 active:scale-95 disabled:opacity-50 transition-all text-sm"
                 >
                     Fechar
                 </button>
                 <button
-                    onClick={() => window.print()}
-                    className="px-4 h-10 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-blue-600 active:scale-95 transition-all flex items-center gap-2 text-sm"
+                    onClick={handleDownloadPDF}
+                    disabled={isGenerating}
+                    className="px-4 h-10 bg-navy text-white font-bold rounded-xl shadow-lg shadow-navy/20 hover:scale-105 active:scale-95 disabled:opacity-50 transition-all flex items-center gap-2 text-sm"
                 >
-                    <span className="material-symbols-outlined text-lg">print</span>
-                    Imprimir
+                    <span className="material-symbols-outlined text-lg">
+                        {isGenerating ? 'sync' : 'download'}
+                    </span>
+                    {isGenerating ? 'Gerando PDF...' : 'Baixar Contrato (PDF)'}
                 </button>
             </div>
 
-            {/* A4 Paper Container - Responsive Preview */}
-            <div className="bg-white w-full max-w-[210mm] min-h-screen md:min-h-0 md:my-8 px-4 md:px-[12mm] py-8 md:py-[8mm] shadow-2xl print:shadow-none print:!m-0 print:!w-full print:!min-w-0 print:!max-w-full print:!p-[6mm] text-navy font-serif leading-normal relative text-[12px] md:text-[13px] flex flex-col shrink-0">
+            {/* A4 Paper Container - Minimalist Refined */}
+            <div
+                id="contract-document"
+                ref={documentRef}
+                className="bg-white w-full max-w-[210mm] min-h-[297mm] shadow-2xl p-6 md:p-6 text-navy font-serif leading-tight relative flex flex-col shrink-0 mb-8"
+            >
 
-                {/* Header */}
-                <header className="flex flex-col md:flex-row justify-between items-start border-b border-navy pb-2 mb-2 gap-2 md:gap-0">
+                {/* Clean Typographic Header */}
+                <div className="flex justify-between items-baseline border-b border-navy/20 pb-2 mb-4">
                     <div>
-                        <h1 className="text-xl md:text-2xl font-black uppercase tracking-tighter text-navy leading-none">Empire</h1>
-                        <p className="text-gold font-bold uppercase tracking-[0.3em] text-[10px] mt-0.5">Trajes Finos</p>
+                        <h1 className="text-4xl font-serif tracking-tight text-navy">EMPIRE</h1>
+                        <p className="text-[10px] uppercase tracking-[0.5em] text-black mt-1 font-sans font-black">Trajes Finos</p>
                     </div>
-                    <div className="text-right text-[11px] text-navy/60 font-medium leading-tight">
-                        <p className="font-bold text-navy text-[12px] mb-0.5">{storeSettings?.store_name || 'Empire Trajes Finos'}</p>
-                        <p>{storeSettings?.store_cnpj ? `CNPJ: ${storeSettings.store_cnpj}` : 'CNPJ: 52.377.689/0001-71'}</p>
-                        <p>{storeSettings?.store_phone || '(91) 98428-7746'}</p>
-                        <p>{storeSettings?.store_instagram || '@empiretrajesfinos'}</p>
-                    </div>
-                </header>
-
-                <div className="flex-grow">
-                    {/* Contract Info Sub-header */}
-                    <div className="flex justify-between items-center mb-2">
-                        <p className="font-black text-lg text-navy uppercase tracking-tighter">Contrato {contract.id ? `#${contract.id.toUpperCase().replace('#', '')}` : ''}</p>
-                        <p className="text-navy/60 text-[10px] uppercase font-bold">Emissão: {new Date().toLocaleDateString('pt-BR')}</p>
-                    </div>
-
-                    {/* 1. Identification */}
-                    <section className="mb-2">
-                        <h2 className="text-[12px] font-black uppercase text-navy border-l-2 border-gold pl-2 mb-2 tracking-wide">1. Identificação do Locatário</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
-                            <p><span className="font-black text-navy/50 text-[11px] uppercase">Nome:</span> <span className="uppercase font-bold">{client.name}</span></p>
-                            <p><span className="font-black text-navy/50 text-[11px] uppercase">Documento (CPF):</span> <span className="font-bold">{client.cpf || '___.___.___-__'}</span></p>
-                            <p><span className="font-black text-navy/50 text-[11px] uppercase">Telefone:</span> <span className="font-bold">{client.phone}</span></p>
-                            <p><span className="font-black text-navy/50 text-[11px] uppercase">Email:</span> <span className="font-bold lowercase">{client.email}</span></p>
-                            <div className="col-span-2">
-                                <p><span className="font-black text-navy/50 text-[11px] uppercase">Endereço:</span> <span className="font-bold uppercase">{client.address || '____________________________________________________'}</span></p>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* 1.1 Measurements (Medidas) */}
-                    {client.measurements && (
-                        <section className="mb-2">
-                            <h2 className="text-[11px] font-bold uppercase text-navy/60 mb-1 pl-2">1.1 Medidas</h2>
-                            <div className="grid grid-cols-3 md:grid-cols-5 gap-x-3 gap-y-1 text-[11px] bg-gray-50/50 p-2 rounded border border-gray-100 italic">
-                                {Object.entries(client.measurements).map(([key, value]) => {
-                                    const translations: Record<string, string> = {
-                                        height: 'Altura',
-                                        weight: 'Peso',
-                                        shoeSize: 'Sapato',
-                                        shirtSize: 'Camisa',
-                                        pantsSize: 'Calça',
-                                        jacketSize: 'Paletó',
-                                        chest: 'Tórax',
-                                        waist: 'Cintura',
-                                        hips: 'Quadril',
-                                        shoulder: 'Ombro',
-                                        sleeve: 'Manga',
-                                        inseam: 'Gancho',
-                                        neck: 'Pescoço'
-                                    };
-                                    const label = translations[key] || key;
-                                    return value && (
-                                        <p key={key} title={label} className="truncate">
-                                            <span className="font-bold uppercase text-navy/40 text-[9px] not-italic">{label}:</span> {value}
-                                        </p>
-                                    );
-                                })}
-                            </div>
-                        </section>
-                    )}
-
-                    {/* 2. Rental Items */}
-                    <section className="mb-3">
-                        <h2 className="text-[12px] font-black uppercase text-navy border-l-2 border-gold pl-2 mb-2 tracking-wide">2. Detalhes da Locação</h2>
-                        <div className="grid grid-cols-2 md:flex md:justify-between gap-y-3 mb-2 text-[11px] md:text-[12px] bg-gray-50 p-3 rounded border border-gray-100">
-                            <div>
-                                <span className="text-[9px] md:text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Retirada</span>
-                                <span className="font-black text-navy">{new Date(contract.startDate).toLocaleDateString('pt-BR')} {contract.startTime || '09:00'}</span>
-                            </div>
-                            <div>
-                                <span className="text-[9px] md:text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Devolução</span>
-                                <span className="font-black text-navy">{new Date(contract.endDate).toLocaleDateString('pt-BR')} {contract.endTime || '18:00'}</span>
-                            </div>
-                            <div className="col-span-2 md:col-span-1 md:text-right border-t md:border-t-0 pt-2 md:pt-0">
-                                <span className="text-[9px] md:text-[10px] text-navy/40 uppercase font-black block leading-none mb-0.5">Evento</span>
-                                <span className="uppercase font-black text-gold">{contract.eventType || '-'}</span>
-                            </div>
-                        </div>
-
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b-2 border-navy">
-                                    <th className="py-1 font-black uppercase text-[10px] text-navy/50 w-24">SKU / Ref</th>
-                                    <th className="py-1 font-black uppercase text-[10px] text-navy/50">Item</th>
-                                    <th className="py-1 font-black uppercase text-[10px] text-navy/50 text-center w-16">Tam.</th>
-                                    <th className="py-1 font-black uppercase text-[10px] text-navy/50 text-right w-24">Valor</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {items.map((item, i) => (
-                                    <tr key={i}>
-                                        <td className="py-2.5 font-mono text-[11px] text-navy/30"></td>
-                                        <td className="py-2.5 font-black text-navy uppercase text-[13px] tracking-tight">{item.name}</td>
-                                        <td className="py-2.5 font-black text-primary text-xl text-center">{item.size}</td>
-                                        <td className="py-2.5 text-right font-bold text-[14px] tracking-tighter">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price || 0)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                            <tfoot className="border-t-2 border-navy/10">
-                                <tr>
-                                    <td colSpan={3} className="pt-2 text-right text-[11px] text-navy/40 uppercase font-bold">Total:</td>
-                                    <td className="pt-2 text-right text-xl text-navy font-black">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.totalValue)}
-                                    </td>
-                                </tr>
-
-                                <tr className="text-emerald-700">
-                                    <td colSpan={3} className="py-0.5 text-right text-[11px] uppercase font-bold">
-                                        Entrada ({contract.paymentMethod || 'Pix'}):
-                                    </td>
-                                    <td className="py-0.5 text-right text-base font-black">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.paidAmount || 0)}
-                                    </td>
-                                </tr>
-
-                                <tr className="text-red-600 bg-red-50/50">
-                                    <td colSpan={3} className="py-2 text-right text-[12px] font-black uppercase tracking-tight">
-                                        Saldo a Pagar:
-                                    </td>
-                                    <td className="py-2 text-right text-2xl font-black border-b-2 border-red-200">
-                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.balance ?? (contract.totalValue - (contract.paidAmount || 0)))}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </section>
-
-                    {/* 3. Delivery & Return */}
-                    <section className="mb-4 border border-navy/5 p-3 text-[11px] bg-gray-50 rounded-lg leading-snug">
-                        <h3 className="font-black uppercase mb-1 text-navy text-[12px] border-b border-navy/5 pb-0.5 tracking-tight">Política de Entrega e Devolução</h3>
-                        <p className="text-justify font-medium italic opacity-70">
-                            O traje deve retornar lavado, ajustado e embalado. Proibido ajustes manuais, ferro ou lavagem doméstica. Danos/extravio cobrados pelo valor de reposição. Atrasos geram multa.
+                    <div className="text-right font-sans">
+                        <p className="text-[12px] font-black uppercase tracking-widest text-navy">{storeSettings?.store_name || 'Empire Trajes Finos'}</p>
+                        <p className="text-[10px] text-black font-bold mt-1 tracking-wider uppercase">
+                            {storeSettings?.store_cnpj || 'CNPJ: 52.377.689/0001-71'} <br />
+                            {storeSettings?.store_phone || '(91) 98428-7746'} | {storeSettings?.store_instagram || '@empiretrajesfinos'}
                         </p>
-                    </section>
-
-                    {/* 4. Clauses */}
-                    <section className="mb-4">
-                        <h2 className="text-[11px] font-black uppercase text-navy/40 mb-1.5">Cláusulas</h2>
-                        <div className="text-[9px] space-y-1 text-navy/70 leading-tight">
-                            <p><span className="font-bold text-navy">1.1</span> A locação é firmada mediante a entrada de 50% do valor do serviço no que se refere a reserva, aos ajustes, à lavagem e à organização/devolução. Tratando-se de confecção, o valor da entrada não será estornado, pois refere-se à cláusula 1.1, gerando multa pela desistência.</p>
-
-                            <p><span className="font-bold text-navy">1.2</span> Em caso de desistência ou troca do traje reservado, o valor da entrada não será estornado, pois refere-se à cláusula 1.1, gerando multa pela desistência e perda do crédito no período de 1 ano.</p>
-
-                            <p><span className="font-bold text-navy">1.3</span> Em caso de mudança de data da locação, o valor fica retido como reserva para próximo aluguel, com prazo de limite no período anual vigente.</p>
-
-                            <p><span className="font-bold text-navy">1.4</span> Qualquer alteração solicitada no traje pós-confecção, será cobrado valor adicional.</p>
-
-                            <p><span className="font-bold text-navy">1.5</span> Prova obrigatória. A retirada do traje deverá ter a marcação de período de funcionamento do estabelecimento. Se o locatário alegar indisponibilidade de horário para a realização da prova, o traje não poderá ser retirado. Ajuste adicional será cobrado.</p>
-
-                            <p><span className="font-bold text-navy">1.6</span> A devolução do traje deverá ser feita na data definida pelo estabelecimento. O atraso implicará na cobrança de multa por dia de atraso. É o valor cobrado pela diária da locação. Dependendo da gravidade, será cobrada a multa de 100% do valor da locação, dependência e atraso e o valor cobrado poderá ser maior que a multa.</p>
-
-                            <p><span className="font-bold text-navy">1.7</span> Os itens do traje que por ventura deverão ser devolvidos com o mesmo estado de conservação que foi entregue. Em caso de dano, será cobrado o valor do dano igual ao item ou estrutura que foi danificado. Caso não haja possibilidade de reparo, será cobrado o valor total do produto.</p>
-
-                            <p><span className="font-bold text-navy">1.8</span> Autorizo a Empire Trajes Finos a fazer uso de minha imagem em materiais de marketing on-line e impressa da empresa.</p>
-                        </div>
-                    </section>
+                    </div>
                 </div>
 
-                <section className="mt-2 pt-2 border-t border-gray-100">
-                    <div className="flex justify-between items-end gap-4 md:gap-16">
-                        <div className="w-1/2 text-center flex flex-col items-center">
-                            <div className="h-10 flex items-center justify-center w-full mb-1">
-                                {contract.attendantSignature ? (
-                                    <img src={contract.attendantSignature} alt="Assinatura" className="h-[35px] w-auto object-contain" onClick={() => handleOpenSig('attendant')} />
-                                ) : (
-                                    <button onClick={() => handleOpenSig('attendant')} className="text-[10px] font-bold uppercase text-primary border border-primary/10 px-3 py-1 rounded transition-all print:hidden">Assinar Loja</button>
-                                )}
-                            </div>
-                            <div className="border-b border-navy w-full mb-1 opacity-20"></div>
-                            <p className="text-[12px] font-black uppercase text-navy">Empire</p>
-                        </div>
-
-                        <div className="w-1/2 text-center flex flex-col items-center">
-                            <div className="h-10 flex items-center justify-center w-full mb-1">
-                                {contract.lesseeSignature ? (
-                                    <img src={contract.lesseeSignature} alt="Assinatura" className="h-[35px] w-auto object-contain" onClick={() => handleOpenSig('lessee')} />
-                                ) : (
-                                    <button onClick={() => handleOpenSig('lessee')} className="text-[10px] font-bold uppercase text-primary border border-primary/10 px-3 py-1 rounded transition-all print:hidden">Assinar Cliente</button>
-                                )}
-                            </div>
-                            <div className="border-b border-navy w-full mb-1 opacity-20"></div>
-                            <p className="text-[12px] font-black uppercase text-navy">{client.name}</p>
-                        </div>
+                {/* Document Title & Date */}
+                <div className="flex justify-between items-center mb-3 pb-1 border-b-2 border-navy">
+                    <h2 className="text-xl font-serif italic text-navy">
+                        Contrato de Locação #{contract.number || contract.id.split('-').pop()?.toUpperCase()}
+                    </h2>
+                    <div className="text-right">
+                        <p className="text-[10px] font-sans font-black uppercase tracking-[0.2em] text-black">Data: {new Date().toLocaleDateString('pt-BR')}</p>
+                        {contract.eventDate && (
+                            <p className="text-[11px] font-sans font-black uppercase tracking-[0.1em] text-navy mt-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100 italic">
+                                Data do Evento: {new Date(contract.eventDate).toLocaleDateString('pt-BR')}
+                            </p>
+                        )}
                     </div>
+                </div>
 
-                    {/* Final Document Footer */}
-                    <div className="mt-1 text-center text-[9px] text-navy/30 font-mono italic">
-                        Empire ERP • Documento Digital • {new Date().toLocaleString('pt-BR')}
+                {/* Dynamic Content based on Event Type */}
+                {contract.eventType === 'Debutante' ? (
+                    <div className="space-y-2 mb-3 font-sans">
+                        {/* Responsible Info */}
+                        <section>
+                            <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-gray-100 pb-0.5">Informações sobre o(a) Responsável</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-1 text-[11px]">
+                                <div className="col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Nome Completo</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{client.name}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">CPF</span>
+                                    <p className="font-bold border-b border-gray-50">{client.cpf || '___.___.___-__'}</p>
+                                </div>
+                                <div className="col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Endereço</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{client.address || '________________________________'}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">RG</span>
+                                    <p className="font-bold border-b border-gray-50">{client.rg || '____________'}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">Bairro</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{client.neighborhood || '__________'}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">CEP</span>
+                                    <p className="font-bold border-b border-gray-50">{client.zip || '_____-___'}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">Contatos</span>
+                                    <p className="font-bold border-b border-gray-50">{client.phone} {client.email && `| ${client.email}`}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">Cidade</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{client.city || '__________'}</p>
+                                </div>
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">Estado</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{client.state || '__________'}</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Debutante Info */}
+                        <section>
+                            <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-gray-100 pb-0.5">Debutante</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-8 gap-y-1 text-[11px]">
+                                <div className="col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Nome / Contato</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{contract.debutanteDetails?.name || '________________'}</p>
+                                </div>
+                                <div className="col-span-1">
+                                    <span className="text-[8px] font-black text-black uppercase block">Data Nasc.</span>
+                                    <p className="font-bold border-b border-gray-50">{contract.debutanteDetails?.birthDate ? new Date(contract.debutanteDetails.birthDate).toLocaleDateString('pt-BR') : '__/__/____'}</p>
+                                </div>
+                                <div className="col-span-1">
+                                    <span className="text-[8px] font-black text-black uppercase block">Tema</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{contract.debutanteDetails?.theme || '__________'}</p>
+                                </div>
+                                <div className="col-span-1">
+                                    <span className="text-[8px] font-black text-black uppercase block">Cor Preferida</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{contract.debutanteDetails?.preferredColor || '__________'}</p>
+                                </div>
+                                <div className="col-span-1">
+                                    <span className="text-[8px] font-black text-black uppercase block">Instagram</span>
+                                    <p className="font-bold border-b border-gray-50 shrink-0">{contract.debutanteDetails?.instagram || '__________'}</p>
+                                </div>
+                                <div className="col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Música Preferida</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{contract.debutanteDetails?.preferredMusic || '__________'}</p>
+                                </div>
+                                <div className="col-span-4">
+                                    <span className="text-[8px] font-black text-black uppercase block">Local do Evento</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase">{contract.debutanteDetails?.eventLocation || '________________________________'}</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Package Info */}
+                        <section>
+                            <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-gray-100 pb-0.5">Pacote</h3>
+                            <div className="flex flex-wrap gap-x-6 gap-y-1 text-[10px] items-center">
+                                {[
+                                    { label: '( 1 ) Traje Recepção', key: 'reception' },
+                                    { label: '( 2 ) Traje Valsa', key: 'waltz' },
+                                    { label: '( 3 ) Traje Balada', key: 'party' },
+                                    { label: '( 4 ) Acessórios', key: 'accessories' },
+                                    { label: '( 5 ) Traje Família', key: 'family' }
+                                ].map((pkg) => (
+                                    <div key={pkg.key} className="flex items-center gap-2">
+                                        <div className={`size-3 border border-navy flex items-center justify-center font-bold text-[8px] ${contract.packageDetails?.[pkg.key as keyof typeof contract.packageDetails] ? 'bg-navy text-white' : 'bg-transparent text-transparent'}`}>X</div>
+                                        <span className="font-bold uppercase tracking-tight">{pkg.label}</span>
+                                    </div>
+                                ))}
+                                <div className="ml-auto flex items-center gap-4 border-l border-gray-200 pl-6 h-4">
+                                    <span className="font-black text-[9px] uppercase tracking-widest text-black">Confecção Primeiro Aluguel:</span>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={`size-3 border border-navy flex items-center justify-center font-bold text-[8px] ${contract.packageDetails?.firstRental ? 'bg-navy text-white' : ''}`}>
+                                                {contract.packageDetails?.firstRental ? 'X' : ''}
+                                            </div>
+                                            <span className="font-bold uppercase tracking-tight italic">Sim</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <div className={`size-3 border border-navy flex items-center justify-center font-bold text-[8px] ${!contract.packageDetails?.firstRental ? 'bg-navy text-white' : ''}`}>
+                                                {!contract.packageDetails?.firstRental ? 'X' : ''}
+                                            </div>
+                                            <span className="font-bold uppercase tracking-tight italic">Não</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-3 mb-4 font-sans">
+                        <section>
+                            <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1.5 border-b border-gray-100 pb-0.5">I. Partes Contratantes</h3>
+                            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-[11px]">
+                                <div className="col-span-3 md:col-span-4">
+                                    <span className="text-[8px] font-black text-black uppercase block">Nome Completo</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase h-4">{client.name}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">CPF</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{client.cpf || '___.___.___-__'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">RG</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{client.rg || '__________'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Data Nasc.</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{client.birthDate ? new Date(client.birthDate).toLocaleDateString('pt-BR') : '__/__/____'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Fone</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{client.phone}</p>
+                                </div>
+
+                                <div className="col-span-2 md:col-span-4">
+                                    <span className="text-[8px] font-black text-black uppercase block">Endereço</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase h-4">{client.address || '________________________________'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">CEP</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{client.zip || '_____-___'}</p>
+                                </div>
+
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Bairro</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase h-4">{client.neighborhood || '__________'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Cidade</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase h-4">{client.city || '__________'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Estado</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{client.state || 'UF'}</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1.5 border-b border-gray-100 pb-0.5">II. Objeto e Período</h3>
+                            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-[11px]">
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Retirada</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{new Date(contract.startDate).toLocaleDateString('pt-BR')} às {contract.startTime || '09:00'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Devolução</span>
+                                    <p className="font-bold border-b border-gray-50 h-4">{new Date(contract.endDate).toLocaleDateString('pt-BR')} às {contract.endTime || '18:00'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-2">
+                                    <span className="text-[8px] font-black text-black uppercase block">Natureza</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase h-4">{contract.eventType || '-'}</p>
+                                </div>
+
+                                <div className="col-span-2 md:col-span-3">
+                                    <span className="text-[8px] font-black text-black uppercase block">Evento / Local</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase h-4">{contract.eventLocation || '____________________'}</p>
+                                </div>
+                                <div className="col-span-1 md:col-span-3">
+                                    <span className="text-[8px] font-black text-black uppercase block">Contato</span>
+                                    <p className="font-bold border-b border-gray-50 uppercase h-4">{contract.contact || '__________'}</p>
+                                </div>
+
+                                <div className="col-span-2 md:col-span-4 flex items-center gap-6 pt-1">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`size-3 rounded border border-navy flex items-center justify-center ${contract.guestRole === 'Anfitrião' ? 'bg-navy' : ''}`}>
+                                            {contract.guestRole === 'Anfitrião' && <span className="text-white text-[8px] font-black">X</span>}
+                                        </div>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider">Anfitrião</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className={`size-3 rounded border border-navy flex items-center justify-center ${contract.guestRole === 'Convidado' ? 'bg-navy' : ''}`}>
+                                            {contract.guestRole === 'Convidado' && <span className="text-white text-[8px] font-black">X</span>}
+                                        </div>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider">Convidado</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-4">
+                                        <div className={`size-3 rounded border border-navy flex items-center justify-center ${contract.isFirstRental ? 'bg-navy' : ''}`}>
+                                            {contract.isFirstRental && <span className="text-white text-[8px] font-black">X</span>}
+                                        </div>
+                                        <span className="text-[9px] font-bold uppercase tracking-wider">Confecção 1º Aluguel</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                )}
+
+                {/* Technical / Fitting Info Section */}
+                <section className="mb-3 font-sans">
+                    <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-navy/10 pb-0.5 italic">III. Detalhes de Prova e Medidas</h3>
+                    <div className="grid grid-cols-2 gap-8">
+                        {/* Fitting Date */}
+                        <div className="bg-gray-50/50 p-2 rounded border border-gray-100 flex justify-between items-center">
+                            <div>
+                                <span className="text-[8px] font-black text-black uppercase block">Data e Hora da Prova</span>
+                                <p className="text-[12px] font-black text-navy uppercase tracking-tight">
+                                    {contract.fittingDate ? new Date(contract.fittingDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : '____/____/____'}
+                                    {contract.fittingTime ? ` às ${contract.fittingTime}` : ' às ____:____'}
+                                </p>
+                            </div>
+                            <span className="material-symbols-outlined text-navy/20 text-xl">schedule</span>
+                        </div>
+
+                        {/* Measurements Table (Compact) */}
+                        <div className="grid grid-cols-3 gap-2">
+                            {[
+                                { label: 'Altura', key: 'height' },
+                                { label: 'Peso', key: 'weight' },
+                                { label: 'Tórax', key: 'chest' },
+                                { label: 'Cintura', key: 'waist' },
+                                { label: 'Dorso', key: 'neck' },
+                                { label: 'Manga', key: 'sleeve' }
+                            ].map((m) => (
+                                <div key={m.key} className="border-b border-gray-100 flex flex-col">
+                                    <span className="text-[7px] font-black text-gray-400 uppercase leading-none">{m.label}</span>
+                                    <span className="text-[10px] font-black text-navy h-3">{contract.measurements?.[m.key] || '____'}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </section>
 
+                {/* Items Table - Minimalist Table */}
+                <section className="mb-3">
+                    <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black italic">IV. Itens e Valores</h3>
+                    <table className="w-full text-left font-sans border-collapse">
+                        <thead>
+                            <tr className="border-b border-navy">
+                                <th className="py-3 font-black uppercase text-[10px] tracking-widest text-black">Descrição do Item</th>
+                                <th className="py-3 font-black uppercase text-[10px] tracking-widest text-navy/40 text-center">Tamanho</th>
+                                <th className="py-3 font-black uppercase text-[10px] tracking-widest text-navy/40 text-right">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 italic">
+                            {items.map((item, i) => (
+                                <tr key={i}>
+                                    <td className="py-1 font-bold text-navy uppercase">{item.name}</td>
+                                    <td className="py-1 font-bold text-navy text-center text-sm">{item.size}</td>
+                                    <td className="py-1 text-right font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price || 0)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot className="border-t-2 border-navy">
+                            <tr>
+                                <td colSpan={3} className="py-4">
+                                    <div className="flex flex-row justify-between items-center gap-6 font-sans">
+                                        {/* Total Geral */}
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-black">Total Geral:</span>
+                                            <span className="text-lg font-black text-navy">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.totalValue)}</span>
+                                        </div>
+
+                                        {/* Adiantamento */}
+                                        <div className="flex items-baseline gap-2 opacity-60">
+                                            <span className="text-[8px] font-bold uppercase tracking-widest text-black">
+                                                Reserva ({contract.paymentMethod || 'PIX'}):
+                                            </span>
+                                            <span className="text-[12px] font-black italic">
+                                                -{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.paidAmount || 0)}
+                                            </span>
+                                        </div>
+
+                                        {/* Saldo Pendente */}
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="text-[9px] font-black uppercase tracking-tighter text-red-600">Saldo na Retirada:</span>
+                                            <span className="text-xl font-black text-red-600">
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.balance ?? (contract.totalValue - (contract.paidAmount || 0)))}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </section>
+
+                {/* Delivery & Return Policy */}
+                <section className="mb-2 border-t border-gray-100 pt-0.5">
+                    <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-0 px-1 italic">V. Entrega e Devolução</h3>
+                    <p className="text-[7.5px] leading-tight text-black text-justify font-sans px-1">
+                        O traje será entregue lavado, passado, ajustado e embalado em capa e na cruzeta. Proibido fazer ajustes. Proibido usar ferro elétrico. Proibido lavar. Deve ser devolvido sem danos. Perda, extravio ou dano do objeto será cobrado o valor equivalente ao mesmo. Atrasos na devolução será cobrado multa por dia de atraso. Caso ocorra alguma eventualidade quanto ao prazo de retirada ou devolução do traje, é obrigação informar antecipação. Antecipação de Retirada será cobrado taxa.
+                    </p>
+                </section>
+
+                {/* Observations (NEW) */}
+                {contract.observations && (
+                    <section className="mb-2 border border-blue-50 bg-blue-50/20 p-1.5 rounded">
+                        <h3 className="text-[8px] font-sans font-black uppercase tracking-widest text-blue-900 mb-0.5">Observações Adicionais</h3>
+                        <p className="text-[8.5px] font-bold text-blue-900 leading-tight italic">{contract.observations}</p>
+                    </section>
+                )}
+
+                {/* Legal Clauses - Modern Legal Typography */}
+                <section className="mb-2 border-t border-gray-100 pt-0.5">
+                    <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-0.5 px-1 italic">VI. Cláusulas e Condições Gerais</h3>
+                    <div className="text-[7.5px] leading-[1.4] text-black text-justify font-sans space-y-2">
+                        <p><span className="font-black text-navy">1.1</span> A LOCAÇÃO É FIRMADA MEDIANTE A ENTRADA DE 50% DO VALOR DO SERVIÇO NO QUE SE REFERE A RESERVA, AOS AJUSTES, À LAVAGEM E À ORGANIZAÇÃO DO MESMO. TRATANDO-SE DE CONFECÇÃO DE PRIMEIRO ALUGUEL, O VALOR DE ENTRADA 60% DO VALOR ORÇADO.</p>
+                        <p><span className="font-black text-navy">1.2</span> EM CASO DE DESISTÊNCIA OU TROCA DO TRAJE RESERVADO, O VALOR DE ENTRADA NÃO SERÁ ESTORNADO, POIS REFERE-SE A CLAUSULA 1.1, GERANDO MULTA PELA DESISTÊNCIA. PODENDO SER DESCONTADA NO VALOR DA ENTRADA.</p>
+                        <p><span className="font-black text-navy">1.3</span> EM CASO DE MUDANÇA DE DATA DA LOCAÇÃO, O VALOR FICA RETIDO COMO RESERVA PARA PRÓXIMO ALUGUEL COM PRAZO DE LIMITE NO PERÍODO ANUAL VIGENTE.</p>
+                        <p><span className="font-black text-navy">1.4</span> QUALQUER ALTERAÇÃO SOLICITADA NO TRAJE E/OU CONFECÇÃO, SERÁ COBRADO VALOR ADICIONAL.</p>
+                        <p><span className="font-black text-navy">1.5</span> A PROVA É OBRIGATÓRIA ANTES DA RETIRADA DO TRAJE. DEVE SER MARCADA NO PERÍODO DE FUNCIONAMENTO DO ESTABELECIMENTO. SE O LOCATÁRIO ALEGAR INDISPONIBILIDADE DE HORÁRIO PARA A REALIZAÇÃO DA PROVA, O TRAJE NÃO PODERÁ SER RETIRADO. AJUSTE ADICIONAL SERÁ COBRADO.</p>
+                        <p><span className="font-black text-navy">1.6</span> A DEVOLUÇÃO DO TRAJE DEVERÁ SER FEITA NA DATA DEFINIDA PELO ESTABELECIMENTO. O ATRASO IMPLICARÁ NA COBRANÇA DE MULTA POR ATRASO. E O VALOR COBRADO PODERÁ SER MULTA POR DIA OU VALOR DE ALUGUEL, DEPENDENDO DA OCORRÊNCIA.</p>
+                        <p><span className="font-black text-navy">1.7</span> O TRAJE OS ITENS QUE OS ACOMPANHAM DEVERÃO SER DEVOLVIDOS COM O MESMO ESTADO DE CONSERVAÇÃO QUE FOI ENTREGUE. EM CASO DE DANO, SERÁ COBRADO O VALOR DO DANO E/OU DO ITEM. SE O PRODUTO FOR EXTRAVIADO OU IRREPARÁVEL, SERÁ COBRADO O VALOR TOTAL DO PRODUTO.</p>
+                        <p><span className="font-black text-navy">1.8</span> AUTORIZO A EMPIRE TRAJES FINOS FAZER USO DE MINHA IMAGEM EM MATERIAIS DE MARKETING ON LINE E IMPRESSO DA EMPRESA.</p>
+                    </div>
+                </section>
+
+                {/* Signatures Area - Anchored Bottom */}
+                <div className="mt-auto grid grid-cols-2 gap-8 pt-2">
+                    <div className="text-center">
+                        <div className="h-14 flex items-center justify-center mb-1">
+                            {contract.attendantSignature && (
+                                <img src={contract.attendantSignature} alt="Assinatura Locador" className="h-full w-auto object-contain" />
+                            )}
+                        </div>
+                        <div className="border-t border-navy w-full mb-1"></div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-navy">Empire Trajes Finos</p>
+                        <p className="text-[8px] font-bold text-black uppercase tracking-widest">Contratada / Locador</p>
+                    </div>
+
+                    <div className="text-center">
+                        <div className="h-14 flex items-center justify-center mb-1">
+                            {contract.lesseeSignature && (
+                                <img src={contract.lesseeSignature} alt="Assinatura Contratante" className="h-full w-auto object-contain" />
+                            )}
+                        </div>
+                        <div className="border-t border-navy w-full mb-1"></div>
+                        <p className="text-[10px] font-black uppercase tracking-tighter text-navy">{client.name}</p>
+                        <p className="text-[8px] font-bold text-black uppercase tracking-widest">Contratante / Locatário</p>
+                    </div>
+                </div>
+
             </div>
-            {/* Signature Modal */}
-            <SignatureModal
-                isOpen={showSigModal}
-                onClose={() => setShowSigModal(false)}
-                onSave={handleSaveSig}
-                title={sigType === 'lessee' ? 'Assinatura do Cliente' : 'Assinatura do Atendente'}
-            />
         </div>
     );
 }

@@ -226,9 +226,9 @@ export default function Financial() {
             {/* Header */}
             <div className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 transition-all">
                 <div>
-                    <h1 className="text-2xl md:text-4xl font-black text-navy tracking-tighter">
+                    <h1 className="text-2xl md:text-4xl font-black text-navy tracking-tighter flex items-center">
                         FINANCEIRO
-                        <span className="text-transparent bg-clip-text bg-gradient-to-tr from-emerald-400 to-green-600">.</span>
+                        <span className="text-transparent bg-clip-text bg-gradient-to-tr from-emerald-400 to-green-600 mr-1">.</span>
                     </h1>
                     <p className="text-gray-400 font-medium text-xs md:text-sm tracking-wide mt-0.5">Gestão de caixa e lucratividade</p>
                 </div>
