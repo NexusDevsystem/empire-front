@@ -4,7 +4,7 @@ import { useToast } from '../contexts/ToastContext';
 import { Item, ItemStatus, Contract } from '../types';
 
 export default function Logistics() {
-    const { items, updateItem, contracts, updateContractStatus } = useApp();
+    const { items, updateItem, contracts, updateContractStatus, navigateTo, setSelectedContractId } = useApp();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<'triagem' | 'lavanderia' | 'atelier'>('triagem');
     const [searchTerm, setSearchTerm] = useState('');
@@ -66,12 +66,18 @@ export default function Logistics() {
     // --- HANDLERS ---
 
     const handleConfirmPickup = (itemId: string, itemName: string, contractId: string) => {
+        // Validation: Signature check
+        const contract = contracts.find(c => c.id === contractId);
+        if (contract && !contract.lesseeSignature) {
+            showToast('error', 'Saída Bloqueada: Contrato sem assinatura!');
+            return;
+        }
+
         // 1. Update Item Status
         updateItem(itemId, { status: 'Alugado', statusColor: 'red' });
         showToast('success', `${itemName} confirmado para saída!`);
 
         // 2. Check Smart Start (Auto-Start Contract)
-        const contract = contracts.find(c => c.id === contractId);
         if (contract) {
             // Check if ALL OTHER items are already 'Alugado'
             const allOthersPickedUp = contract.items
@@ -136,8 +142,10 @@ export default function Logistics() {
             ? item.status === 'Alugado'
             : ['Devolução', 'Na Lavanderia', 'No Atelier', 'Disponível'].includes(item.status);
 
+        const needsSignature = action === 'pickup' && !contract.lesseeSignature;
+
         return (
-            <div key={`${contract.id}-${item.id}`} className={`bg-white p-3 md:p-4 rounded-2xl border ${isDone ? 'border-green-100 bg-green-50/30' : 'border-gray-100'} shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 group transition-all`}>
+            <div key={`${contract.id}-${item.id}`} className={`bg-white p-3 md:p-4 rounded-2xl border ${isDone ? 'border-green-100 bg-green-50/30' : (needsSignature ? 'border-amber-200 bg-amber-50/20 shadow-inner' : 'border-gray-100')} shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 group transition-all`}>
                 <div className="flex gap-3 md:gap-4 items-center w-full sm:w-auto">
                     <div className="size-14 md:size-16 rounded-xl bg-cover bg-center border border-gray-100 shadow-sm shrink-0" style={{ backgroundImage: `url('${item.img}')` }}></div>
                     <div className="min-w-0 flex-1">
@@ -145,7 +153,16 @@ export default function Logistics() {
                             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">{contract.eventType}</span>
                         </div>
                         <p className="font-black text-navy leading-tight truncate">{item.name}</p>
-                        <p className="text-[10px] md:text-xs text-gray-400 mt-1 font-bold">Contrato #{contract.id.split('-')[2]}</p>
+                        <button
+                            onClick={() => {
+                                setSelectedContractId(contract.id);
+                                navigateTo('contracts');
+                            }}
+                            className="text-[10px] md:text-xs text-primary hover:text-blue-700 mt-1 font-bold flex items-center gap-1 group/link"
+                        >
+                            Contrato #{contract.id.split('-').length > 2 ? contract.id.split('-')[2] : contract.id.slice(-6)}
+                            <span className="material-symbols-outlined text-[12px] opacity-0 group-hover/link:opacity-100 transition-opacity">open_in_new</span>
+                        </button>
                     </div>
                 </div>
 
@@ -153,6 +170,14 @@ export default function Logistics() {
                     <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-100 px-4 py-2 rounded-xl w-full sm:w-auto justify-center">
                         <span className="material-symbols-outlined text-lg">check_circle</span>
                         <span className="text-[10px] font-black uppercase tracking-widest">Concluído</span>
+                    </div>
+                ) : needsSignature ? (
+                    <div className="flex flex-col gap-1 w-full sm:w-auto">
+                        <div className="flex items-center gap-2 text-amber-600 bg-amber-50 border border-amber-200 px-4 py-2 rounded-xl w-full justify-center">
+                            <span className="material-symbols-outlined text-lg animate-pulse">edit_note</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest">Pendente de Assinatura</span>
+                        </div>
+                        <p className="text-[10px] text-amber-500 font-bold text-center italic">Não é possível liberar</p>
                     </div>
                 ) : (
                     <button
