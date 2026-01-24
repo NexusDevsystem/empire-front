@@ -12,6 +12,7 @@ export interface Item {
     color?: string;
     note?: string; // e.g. "24 Out - 28 Out"
     price: number; // Rental price in BRL
+    salePrice?: number; // Sale price in BRL
 
     // Campos de quantidade para sistema de estoque
     totalQuantity?: number;
@@ -73,7 +74,8 @@ export interface Contract {
     id: string; // e.g. #CN-2023-849
     clientId: string;
     clientName?: string;
-    items: string[]; // List of Item IDs
+    items: string[]; // List of Rental Item IDs
+    saleItems?: string[]; // List of Sold Item IDs
     startDate: string; // ISO Date or formatted string
     startTime?: string; // HH:mm
     endDate: string;

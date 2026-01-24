@@ -209,6 +209,7 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                 size: representativeItem.size,
                 color: representativeItem.color,
                 price: representativeItem.price,
+                salePrice: representativeItem.salePrice,
                 img: representativeItem.img,
                 loc: representativeItem.loc
             });
@@ -832,6 +833,16 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                                                     type="number"
                                                     value={bulkEditForm.price || 0}
                                                     onChange={e => setBulkEditForm(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
+                                                    className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-primary/5 outline-none font-black text-navy"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Valor de Venda (R$)</label>
+                                                <input
+                                                    type="number"
+                                                    value={bulkEditForm.salePrice || 0}
+                                                    onChange={e => setBulkEditForm(prev => ({ ...prev, salePrice: parseFloat(e.target.value) }))}
                                                     className="w-full h-12 px-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-4 focus:ring-primary/5 outline-none font-black text-navy"
                                                 />
                                             </div>

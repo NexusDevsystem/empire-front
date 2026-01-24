@@ -81,6 +81,7 @@ const mapItemFromDB = (db: any): Item => ({
     size: db.size || '',
     color: db.color || '',
     price: db.rental_price,
+    salePrice: db.sale_price,
     status: db.status,
     statusColor: db.status_color || 'primary',
     img: db.image_url || '',
@@ -99,6 +100,7 @@ const mapItemToDB = (item: Item) => ({
     size: item.size,
     color: item.color,
     rental_price: item.price,
+    sale_price: item.salePrice,
     status: item.status,
     status_color: item.statusColor,
     image_url: item.img,
@@ -368,6 +370,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
             const saved = await contractsAPI.create(contract);
             setContracts(prev => [...prev, saved]);
+
+            // Reduction logic for sold items
+            if (contract.saleItems && contract.saleItems.length > 0) {
+                const salesMap: Record<string, number> = {};
+                contract.saleItems.forEach(id => {
+                    salesMap[id] = (salesMap[id] || 0) + 1;
+                });
+
+                for (const [itemId, qty] of Object.entries(salesMap)) {
+                    const item = items.find(i => i.id === itemId);
+                    if (item) {
+                        const newTotal = (item.totalQuantity || 1) - qty;
+                        const newAvail = (item.availableQuantity || 1) - qty;
+
+                        // Use updateItem to sync with DB and local state
+                        await updateItem(itemId, {
+                            totalQuantity: Math.max(0, newTotal),
+                            availableQuantity: Math.max(0, newAvail)
+                        });
+                    }
+                }
+            }
+
             return saved;
         } catch (error) {
             console.error('[AppContext] Error adding contract:', error);

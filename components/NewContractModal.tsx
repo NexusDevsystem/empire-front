@@ -40,6 +40,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     const [eventDate, setEventDate] = useState('');
     const [eventType, setEventType] = useState<import('../types').EventType>('Casamento');
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+    const [saleItemIds, setSaleItemIds] = useState<string[]>([]);
     const [discount, setDiscount] = useState('0');
     const [notes, setNotes] = useState('');
     const [paidAmount, setPaidAmount] = useState<number>(0);
@@ -218,10 +219,13 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
         });
     }, [selectedItemIds, items]);
 
-    const subtotal = selectedItemIds.reduce((acc, id) => {
-        const item = items.find(i => i.id === id);
-        return acc + (item?.price || 0);
-    }, 0);
+    const subtotal = useMemo(() => {
+        return selectedItemIds.reduce((acc, id) => {
+            const item = items.find(i => i.id === id);
+            const isSale = saleItemIds.includes(id);
+            return acc + (isSale ? (item?.salePrice || item?.price || 0) : (item?.price || 0));
+        }, 0);
+    }, [selectedItemIds, saleItemIds, items]);
     const total = subtotal - parseFloat(discount || '0');
 
 
@@ -316,6 +320,12 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
 
     const handleBack = () => setStep(prev => prev - 1);
 
+    const toggleSaleItem = (id: string) => {
+        setSaleItemIds(prev =>
+            prev.includes(id) ? prev.filter(sid => sid !== id) : [...prev, id]
+        );
+    };
+
     const adjustQuantity = (group: any, delta: number) => {
         const groupItemIds = group.allItems.map((i: any) => i.id);
         const selectedFromGroup = selectedItemIds.filter(id => groupItemIds.includes(id)).length;
@@ -354,7 +364,8 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
             id: `CN-${timestamp}-${random}`,
             clientId,
             clientName: selectedClient?.name || newClientDetails.name,
-            items: selectedItemIds,
+            items: selectedItemIds.filter(id => !saleItemIds.includes(id)),
+            saleItems: selectedItemIds.filter(id => saleItemIds.includes(id)),
             startDate,
             startTime,
             endDate,
@@ -988,11 +999,26 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                             </div>
                                             <div className="p-3">
                                                 <h4 className="font-bold text-navy text-xs truncate">{item.name}</h4>
-                                                <div className="flex justify-between items-center mt-1">
-                                                    <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-bold text-gray-500 uppercase">{item.size}</span>
-                                                    <span className="font-bold text-navy text-xs">
-                                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((item.price || 0) * item.quantity)}
-                                                    </span>
+                                                <div className="flex flex-col gap-2 mt-2">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-bold text-gray-500 uppercase">{item.size}</span>
+                                                        <button
+                                                            onClick={() => toggleSaleItem(item.id)}
+                                                            className={`px-2 py-1 rounded text-[9px] font-black uppercase transition-all border ${saleItemIds.includes(item.id)
+                                                                ? 'bg-gold text-navy border-gold shadow-sm'
+                                                                : 'bg-blue-50 text-primary border-blue-100'}`}
+                                                        >
+                                                            {saleItemIds.includes(item.id) ? 'Venda' : 'Aluguel'}
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex justify-between items-center bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+                                                        <span className="text-[10px] font-bold text-gray-400">Total</span>
+                                                        <span className="font-black text-navy text-xs">
+                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                                                (saleItemIds.includes(item.id) ? (item.salePrice || item.price || 0) : (item.price || 0)) * item.quantity
+                                                            )}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
