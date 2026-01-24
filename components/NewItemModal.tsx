@@ -275,17 +275,32 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <label className="text-xs font-bold text-navy uppercase ml-1 mb-1.5 block">Valor de Locação (R$)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R$</span>
-                                            <input
-                                                type="number"
-                                                value={newItem.price || ''}
-                                                onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })}
-                                                className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none font-bold text-navy placeholder-gray-400"
-                                                placeholder="0,00"
-                                            />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-navy uppercase ml-1 mb-1.5 block">Valor de Locação (R$)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R$</span>
+                                                <input
+                                                    type="number"
+                                                    value={newItem.price || ''}
+                                                    onChange={e => setNewItem({ ...newItem, price: parseFloat(e.target.value) })}
+                                                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none font-bold text-navy placeholder-gray-400"
+                                                    placeholder="0,00"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-bold text-navy uppercase ml-1 mb-1.5 block">Valor de Venda (R$)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">R$</span>
+                                                <input
+                                                    type="number"
+                                                    value={newItem.salePrice || ''}
+                                                    onChange={e => setNewItem({ ...newItem, salePrice: parseFloat(e.target.value) })}
+                                                    className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none font-bold text-navy placeholder-gray-400"
+                                                    placeholder="0,00"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
