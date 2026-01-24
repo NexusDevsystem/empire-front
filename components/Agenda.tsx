@@ -11,16 +11,15 @@ export default function Agenda() {
     const { items, contracts, clients, appointments, updateItem, updateContractStatus, deleteAppointment, updateAppointment } = useApp();
     const { showToast } = useToast();
 
-    // Start with the most recent Monday
     const [viewStartDate, setViewStartDate] = useState(() => {
         const d = new Date();
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-        return new Date(d.setDate(diff));
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        return new Date(year, month, 1);
     });
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [isApptModalOpen, setIsApptModal] = useState(false);
-    const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false); // Mobile Modal State
+    const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(false);
     const [filterCategory, setFilterCategory] = useState<string>('Todos');
 
     // Delete Modal State
@@ -39,29 +38,21 @@ export default function Agenda() {
         type: 'info'
     });
 
-    // Configuration
-    // (Timeline constants removed)
-
-    // Debug
-    console.log('Rendering Agenda Component');
-
     const getDuration = (startStr: string, endStr: string) => {
         const s = new Date(startStr);
         const e = new Date(endStr);
         return Math.floor((e.getTime() - s.getTime()) / (1000 * 3600 * 24)) + 1; // Inclusive
     };
 
-    const shiftDate = (days: number) => {
+    const shiftMonth = (delta: number) => {
         const newDate = new Date(viewStartDate);
-        newDate.setDate(newDate.getDate() + days);
+        newDate.setMonth(viewStartDate.getMonth() + delta);
         setViewStartDate(newDate);
     };
 
     const goToToday = () => {
         const d = new Date();
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        setViewStartDate(new Date(d.setDate(diff)));
+        setViewStartDate(new Date(d.getFullYear(), d.getMonth(), 1));
     };
 
     // Calendar Helpers
@@ -75,7 +66,6 @@ export default function Agenda() {
         return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
     };
 
-    // Get unique categories from items
     const categories = useMemo(() => {
         const types = items.map(i => i.type).filter(Boolean);
         return ['Todos', ...Array.from(new Set(types))];
@@ -116,10 +106,7 @@ export default function Agenda() {
         return contracts.filter(c => {
             const isStatusValid = c.status === 'Ativo' || c.status === 'Agendado';
             if (!isStatusValid) return false;
-
             if (filterCategory === 'Todos') return true;
-
-            // Check if any item in the contract matches the selected category
             return c.items.some(itemId => {
                 const item = items.find(i => i.id === itemId);
                 return item?.type === filterCategory;
@@ -127,59 +114,16 @@ export default function Agenda() {
         });
     }, [contracts, items, filterCategory]);
 
-    // Derived Appointments for Calendar
     const calendarAppointments = useMemo(() => {
         return appointments.filter(a => a.status === 'Agendado');
     }, [appointments]);
 
-    // Layout Logic for Consistent Rows
-    const contractLayout = useMemo(() => {
-        // Sort contracts same as visual expectation: Start Date ASC, then ID or Duration
-        const sorted = [...calendarContracts].sort((a, b) => {
-            if (a.startDate !== b.startDate) return a.startDate.localeCompare(b.startDate);
-            const durA = getDuration(a.startDate, a.endDate);
-            const durB = getDuration(b.startDate, b.endDate);
-            return durB - durA; // Longest first for better packing
-        });
-
-        const assignments: Record<string, number> = {};
-        const rows: string[] = []; // 'YYYY-MM-DD' of when the row becomes free
-
-        sorted.forEach(c => {
-            let placed = false;
-            // Try to fit in existing rows
-            for (let i = 0; i < rows.length; i++) {
-                // Check if space is available. rows[i] is the LAST OCCUPIED DATE.
-                // So start date must be > rows[i]
-                if (c.startDate > rows[i]) {
-                    assignments[c.id] = i;
-                    rows[i] = c.endDate;
-                    placed = true;
-                    break;
-                }
-            }
-            // Create new row if needed
-            if (!placed) {
-                assignments[c.id] = rows.length;
-                rows.push(c.endDate);
-            }
-        });
-
-        return assignments;
-    }, [calendarContracts]);
-
-    const handleAddApptClick = () => {
-        setIsApptModal(true);
-    };
-
     const renderDayDetails = () => (
         <>
-            {/* Drawer Header - Gradient & Date */}
             <div className="h-40 bg-gradient-to-br from-navy to-primary relative shrink-0 overflow-hidden">
                 <div className="absolute -top-4 -right-4 p-4 opacity-10">
                     <span className="material-symbols-outlined text-[180px] text-white rotate-12">calendar_month</span>
                 </div>
-
                 <div className="absolute bottom-6 left-6 text-white z-10 w-full pr-6">
                     <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1 shadow-sm">Visão do Dia</p>
                     <h2 className="text-3xl font-black capitalize leading-none shadow-sm mb-1">
@@ -191,10 +135,7 @@ export default function Agenda() {
                 </div>
             </div>
 
-            {/* Content Scroll Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-gray-50/50">
-
-                {/* 1. Quick Stats */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
                         <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center mb-2 text-primary">
@@ -221,16 +162,6 @@ export default function Agenda() {
                     </div>
                 </div>
 
-                {/* New Appointment Button */}
-                <button
-                    onClick={handleAddApptClick}
-                    className="w-full py-4 bg-navy text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-navy/20 hover:bg-primary transition-all flex items-center justify-center gap-3 active:scale-95"
-                >
-                    <span className="material-symbols-outlined text-lg">add_task</span>
-                    Novo Agendamento
-                </button>
-
-                {/* 2. Appointments Section */}
                 <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
@@ -248,8 +179,6 @@ export default function Agenda() {
                                 .sort((a, b) => a.time.localeCompare(b.time))
                                 .map(appt => {
                                     const client = clients.find(cl => cl.id === appt.clientId);
-
-                                    // Dynamic colors based on type
                                     let typeColor = 'text-purple-600 bg-purple-50 border-purple-100';
                                     switch (appt.type) {
                                         case 'Primeira Visita': typeColor = 'text-amber-600 bg-amber-50 border-amber-100'; break;
@@ -258,14 +187,11 @@ export default function Agenda() {
                                         case 'Devolução': typeColor = 'text-orange-600 bg-orange-50 border-orange-100'; break;
                                         case 'Ajustes Finais': typeColor = 'text-pink-600 bg-pink-50 border-pink-100'; break;
                                     }
-
-                                    // Status styling
                                     const isCompleted = appt.status === 'Concluído';
                                     const isCancelled = appt.status === 'Cancelado';
 
                                     return (
                                         <div key={appt.id} className={`relative group bg-white p-4 rounded-2xl border transition-all ${isCompleted ? 'border-green-200 bg-green-50/30' : isCancelled ? 'border-red-200 bg-red-50/30 opacity-75' : 'border-gray-100 hover:border-primary/30 hover:shadow-md'}`}>
-                                            {/* Delete Button (Visible on Hover) */}
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -279,7 +205,6 @@ export default function Agenda() {
                                             </button>
 
                                             <div className="flex items-start gap-3">
-                                                {/* Time Pill */}
                                                 <div className={`flex flex-col items-center justify-center shrink-0 w-14 rounded-xl py-2 border ${isCompleted ? 'bg-green-100 border-green-200 text-green-700' : 'bg-gray-50 border-gray-100 text-navy'}`}>
                                                     {isCompleted ? (
                                                         <span className="material-symbols-outlined text-xl">check</span>
@@ -287,7 +212,6 @@ export default function Agenda() {
                                                         <span className="text-xs font-black">{appt.time}</span>
                                                     )}
                                                 </div>
-
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2">
                                                         <h4 className={`text-sm font-bold truncate pr-6 ${isCompleted ? 'text-green-800 line-through decoration-green-500/50' : isCancelled ? 'text-red-800 line-through' : 'text-navy'}`}>
@@ -302,8 +226,6 @@ export default function Agenda() {
                                                             "{appt.notes}"
                                                         </p>
                                                     )}
-
-                                                    {/* Quick Actions for Scheduled Appointments */}
                                                     {appt.status === 'Agendado' && (
                                                         <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                                                             <button
@@ -339,7 +261,6 @@ export default function Agenda() {
                     )}
                 </div>
 
-                {/* 3. Contracts Section */}
                 <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
@@ -366,11 +287,8 @@ export default function Agenda() {
                                 const client = clients.find(cl => cl.id === contract.clientId);
                                 const contractItems = items.filter(i => contract.items.includes(i.id));
 
-                                // Handlers
                                 const handleConfirmPickup = (e: React.MouseEvent) => {
                                     e.stopPropagation();
-
-                                    // Validation: Check for Lessee Signature
                                     if (!contract.lesseeSignature) {
                                         setAlertConfig({
                                             isOpen: true,
@@ -380,7 +298,6 @@ export default function Agenda() {
                                         });
                                         return;
                                     }
-
                                     updateContractStatus(contract.id, 'Ativo');
                                     contract.items.forEach(itemId => {
                                         updateItem(itemId, { status: 'Alugado', statusColor: 'red' });
@@ -419,12 +336,11 @@ export default function Agenda() {
                                             </span>
                                         </div>
 
-                                        {/* Signature Badge */}
                                         <div className="flex gap-2 mb-3">
-                                            {contract.lesseeSignature ? (
+                                            {contract.lesseeSignature || contract.isPhysicallySigned ? (
                                                 <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-bold">
                                                     <span className="material-symbols-outlined text-[12px]">ink_pen</span>
-                                                    Assinado
+                                                    {contract.isPhysicallySigned ? 'Assinado (Manual)' : 'Assinado'}
                                                 </div>
                                             ) : (
                                                 <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100 text-[10px] font-bold">
@@ -445,7 +361,6 @@ export default function Agenda() {
                                             ))}
                                         </div>
 
-                                        {/* Quick Actions */}
                                         {contract.status === 'Agendado' && isTodayOrPastStart && (
                                             <button
                                                 onClick={handleConfirmPickup}
@@ -466,7 +381,6 @@ export default function Agenda() {
                                             </button>
                                         )}
 
-                                        {/* Cancellation (Only if not Finalized or Cancelled) */}
                                         {(contract.status === 'Agendado' || contract.status === 'Ativo') && (
                                             <button
                                                 onClick={(e) => {
@@ -491,13 +405,13 @@ export default function Agenda() {
     );
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="flex flex-col lg:h-full lg:overflow-hidden bg-white border border-gray-200 rounded-[2rem] lg:rounded-lg shadow-sm">
             {/* Header Controls */}
             <div className="p-4 md:p-6 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white shrink-0">
                 <div>
                     <h2 className="text-xl md:text-2xl font-black text-navy flex items-center gap-2">
                         <span className="material-symbols-outlined text-primary">calendar_month</span>
-                        Agenda Maestro
+                        Agenda
                     </h2>
                     <p className="text-gray-500 text-xs md:text-sm">Visualização mensal de agendamentos e locações.</p>
                 </div>
@@ -505,15 +419,15 @@ export default function Agenda() {
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
                     {/* Navigator */}
                     <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-200 w-full sm:w-auto justify-between sm:justify-start">
-                        <button onClick={() => shiftDate(-30)} className="size-9 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-gray-600 transition-all">
+                        <button onClick={() => shiftMonth(-1)} className="size-9 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-gray-600 transition-all">
                             <span className="material-symbols-outlined">chevron_left</span>
                         </button>
                         <div className="flex flex-col items-center px-4">
-                            <span className="text-xl font-black text-navy capitalize tracking-tight">
+                            <span className="text-base font-black text-navy capitalize tracking-tight whitespace-nowrap">
                                 {viewStartDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                             </span>
                         </div>
-                        <button onClick={() => shiftDate(30)} className="size-9 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-gray-600 transition-all">
+                        <button onClick={() => shiftMonth(1)} className="size-9 flex items-center justify-center rounded-lg hover:bg-white hover:shadow-sm text-gray-600 transition-all">
                             <span className="material-symbols-outlined">chevron_right</span>
                         </button>
                         <div className="w-px h-4 bg-gray-200 mx-1 hidden sm:block"></div>
@@ -537,7 +451,6 @@ export default function Agenda() {
                         <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-[18px] pointer-events-none">expand_more</span>
                     </div>
 
-                    {/* Action Button */}
                     <button
                         onClick={() => setIsApptModal(true)}
                         className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-navy text-white text-xs font-black uppercase tracking-widest rounded-xl shadow-lg shadow-navy/20 hover:bg-primary transition-all active:scale-95"
@@ -548,162 +461,73 @@ export default function Agenda() {
                 </div>
             </div>
 
-            {/* Main Layout: Split View */}
-            <div className="flex flex-1 overflow-hidden relative flex-col lg:flex-row">
-
-                {/* LEFT COLUMN: Main Calendar View */}
-                <div className="flex-1 overflow-hidden relative flex flex-col min-h-0">
-                    <div className="flex-1 bg-white p-2 md:p-6 overflow-y-auto">
-
-                        {/* Scroll Wrapper for Mobile */}
-                        <div className="overflow-x-auto pb-4">
-                            {/* Gapless Grid Container - Autosizing Rows */}
-                            <div className="grid grid-cols-7 gap-0 auto-rows-auto border-t border-l border-gray-200 rounded-lg min-w-[800px]">
-                                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(day => (
-                                    <div key={day} className="text-center font-bold text-gray-400 text-sm uppercase py-2 border-b border-r border-gray-200 bg-gray-50 sticky top-0 z-20">
+            {/* Main Layout */}
+            <div className="flex flex-1 lg:overflow-hidden relative flex-col lg:flex-row">
+                <div className="flex-1 lg:overflow-hidden relative flex flex-col min-h-0">
+                    <div className="flex-1 bg-white p-2 lg:p-6 lg:overflow-y-auto">
+                        <div className="hidden lg:block overflow-x-auto pb-4 h-full">
+                            <div className="grid grid-cols-7 gap-0 auto-rows-auto border-t border-l border-gray-200 rounded-xl lg:min-w-[800px]">
+                                {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
+                                    <div key={idx} className="text-center font-black text-gray-400 text-[10px] lg:text-sm uppercase py-2 border-b border-r border-gray-200 bg-gray-50 sticky top-0 z-20">
                                         {day}
                                     </div>
                                 ))}
                                 {getCalendarDays.map((date, i) => {
-                                    if (!date) return <div key={i} className="bg-gray-50/20 border-r border-b border-gray-200 min-h-[120px]" />;
-
                                     const dateStr = date.toISOString().split('T')[0];
                                     const isToday = date.toDateString() === new Date().toDateString();
                                     const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-
-                                    // Get contracts active on this day
-                                    const activeContracts = calendarContracts.filter(c => {
-                                        const start = c.startDate.split('T')[0];
-                                        const end = c.endDate.split('T')[0];
-                                        return start <= dateStr && end >= dateStr;
-                                    });
-
-                                    // Row Packing: Determine which row indices are active for THIS day
-                                    const activeIndices = activeContracts.map(c => contractLayout[c.id] ?? 0);
-                                    const maxRow = activeIndices.length > 0 ? Math.max(...activeIndices) : -1;
-
-                                    // Prepare Rows for Rendering (0..maxRow)
-                                    const rowsToRender = [];
-                                    for (let r = 0; r <= maxRow; r++) {
-                                        const contract = activeContracts.find(c => contractLayout[c.id] === r);
-                                        rowsToRender.push(contract);
-                                    }
-
                                     const dayAppts = calendarAppointments.filter(a => a.date === dateStr);
+                                    const dayContractEvents = calendarContracts.flatMap(c => {
+                                        const events = [];
+                                        if (c.startDate.split('T')[0] === dateStr) {
+                                            events.push({ type: c.contractType === 'Venda' ? 'VENDA' : 'RETIRADA', contract: c, time: c.startTime || '09:00' });
+                                        }
+                                        if (c.contractType === 'Aluguel' && c.endDate.split('T')[0] === dateStr) {
+                                            events.push({ type: 'DEVOLUÇÃO', contract: c, time: c.endTime || '18:00' });
+                                        }
+                                        return events;
+                                    });
 
                                     return (
                                         <div
                                             key={i}
-                                            onClick={() => {
-                                                if (date) {
-                                                    setSelectedDate(date);
-                                                    setIsMobileDetailOpen(true);
-                                                }
-                                            }}
-                                            className={`
-                                                bg-white border-r border-b relative flex flex-col transition-all hover:bg-gray-50 cursor-pointer min-h-[120px] 
-                                                ${isToday ? 'bg-primary/5' : ''} 
-                                                ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : ''}
-                                                ${date.getMonth() !== viewStartDate.getMonth() ? 'opacity-40 grayscale-[0.5]' : ''}
-                                            `}
+                                            onClick={() => { setSelectedDate(date); setIsMobileDetailOpen(true); }}
+                                            className={`bg-white border-r border-b relative flex flex-col transition-all hover:bg-gray-50 cursor-pointer min-h-[70px] lg:min-h-[120px] ${isToday ? 'bg-primary/5' : ''} ${isSelected ? 'ring-2 ring-inset ring-primary z-10' : ''} ${date.getMonth() !== viewStartDate.getMonth() ? 'opacity-40 grayscale-[0.5]' : ''}`}
                                         >
-                                            {/* Date Number - Standard Flow */}
-                                            <div className="flex justify-between items-center p-2">
-                                                <span className={`text-[11px] font-bold ${isToday ? 'text-primary' : (date.getMonth() !== viewStartDate.getMonth() ? 'text-gray-300' : 'text-gray-400')}`}>
+                                            <div className="flex justify-between items-center p-1 lg:p-2">
+                                                <span className={`text-[9px] lg:text-[11px] font-black ${isToday ? 'text-primary' : (date.getMonth() !== viewStartDate.getMonth() ? 'text-gray-200' : 'text-gray-400')}`}>
                                                     {date.getDate()} {date.getDate() === 1 && (
-                                                        <span className="ml-1 uppercase text-[9px]">
-                                                            {date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}
-                                                        </span>
+                                                        <span className="ml-1 uppercase text-[9px]">{date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
                                                     )}
                                                 </span>
                                             </div>
-
-                                            {/* Events Container - No Scroll, Grow with content */}
-                                            <div className="flex flex-col gap-[1px] pb-1 w-full">
-
-                                                {/* Contracts (Using Row Packing) */}
-                                                {rowsToRender.map((c, idx) => {
-                                                    if (!c) {
-                                                        // Spacer for empty row - Uses exact same height as contract for perfect alignment
-                                                        return (
-                                                            <div
-                                                                key={`spacer-${idx}`}
-                                                                className="h-6 w-full invisible flex-shrink-0"
-                                                            />
-                                                        );
-                                                    }
-
-                                                    // Normalize contract dates to ensure correct comparison with cell date (YYYY-MM-DD)
-                                                    const isStart = c.startDate.split('T')[0] === dateStr;
-                                                    const isEnd = c.endDate.split('T')[0] === dateStr;
-
-                                                    // Visual checks: Identify Visual Start (Left) and Visual End (Right) of the segment in this row
-                                                    const isRowStart = i % 7 === 0;
-                                                    const isRowEnd = i % 7 === 6;
-
-                                                    // Visual Start: It is the start of the contract OR the start of the week row
-                                                    const isVisualStart = isStart || isRowStart;
-                                                    // Visual End: It is the end of the contract OR the end of the week row
-                                                    const isVisualEnd = isEnd || isRowEnd;
-
-                                                    // Styles
-                                                    // 1. Margins: Add margin left/right ONLY if it's a visual start/end. 
-                                                    //    Inside the row, we want 0 gaps (seamless).
-                                                    // 2. Borders/Rounding: Round the outer edges of the segment. Square the inner connections.
-
-                                                    // FIX: If it is a row start but NOT a true start, do not round the left side and do not add margin-left.
-                                                    // This creates the "continuous" look from the previous row.
-                                                    const applyLeftRounding = isStart;
-                                                    const applyRightRounding = isEnd;
-
-                                                    const marginClass = `
-                                                        ${applyLeftRounding ? 'ml-1 rounded-l-md pl-1' : '-ml-[1px] rounded-l-none border-l-0'} 
-                                                        ${applyRightRounding ? 'mr-1 rounded-r-md' : '-mr-[1px] rounded-r-none border-r-0'}
-                                                    `;
-
-                                                    return (
-                                                        <div
-                                                            key={c.id}
-                                                            style={{ backgroundColor: getContractColor(c.id) }}
-                                                            className={`
-                                                            h-6 flex items-center text-[10px] font-bold text-white cursor-pointer hover:brightness-110 transition-all z-10
-                                                            ${marginClass}
-                                                        `}
-                                                            title={`#${c.id} - ${c.eventType}`}
-                                                        >
-                                                            {isStart && ( // Show identifier ONLY at the true start of the contract
-                                                                <span className="truncate w-full pr-1 flex items-center gap-1">
-                                                                    {c.contractType === 'Venda' && (
-                                                                        <span className="bg-emerald-500 text-[8px] px-1 rounded shadow-sm shrink-0 leading-tight">VENDA</span>
-                                                                    )}
-                                                                    <span className="truncate">#{c.id.split('-')[2]} {c.items.length > 0 ? `• ${items.find(it => it.id === c.items[0])?.name}` : ''}</span>
-                                                                </span>
-                                                            )}
-                                                            {isEnd && (
-                                                                <div className="ml-auto mr-1.5 size-1.5 rounded-full bg-white/60 shadow-sm shrink-0 animate-in zoom-in duration-300" />
-                                                            )}
-
+                                            <div className="flex flex-col gap-1 pb-1 w-full px-1">
+                                                {dayContractEvents.map(evt => (
+                                                    <div key={`${evt.contract.id}-${evt.type}`} className={`h-auto min-h-[20px] flex items-center gap-1 text-[9px] lg:text-[10px] ${evt.type === 'RETIRADA' || evt.type === 'VENDA' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'} px-1.5 py-0.5 rounded-md font-bold border leading-tight`}>
+                                                        <span className="material-symbols-outlined text-[10px] sm:text-[12px] shrink-0">{evt.type === 'RETIRADA' || evt.type === 'VENDA' ? 'output' : 'input'}</span>
+                                                        <div className="flex flex-col min-w-0">
+                                                            <span className="leading-none truncate">{evt.type === 'VENDA' ? 'VENDA' : evt.type}</span>
+                                                            <span className="truncate font-medium opacity-80">{evt.time} - {clients.find(cl => cl.id === evt.contract.clientId)?.name || evt.contract.clientName}</span>
                                                         </div>
-                                                    );
-                                                })}
-
-                                                {/* Appointments (keep as pills) */}
+                                                    </div>
+                                                ))}
                                                 {dayAppts.map(a => {
-                                                    // Color Coding
                                                     let bgClass = 'bg-gray-100 text-gray-700 border-gray-200';
                                                     switch (a.type) {
-                                                        case 'Primeira Visita': bgClass = 'bg-amber-100 text-amber-700 border-amber-200'; break;
+                                                        case 'Primeira Visit': bgClass = 'bg-amber-100 text-amber-700 border-amber-200'; break;
                                                         case 'Prova de Traje': bgClass = 'bg-blue-100 text-blue-700 border-blue-200'; break;
                                                         case 'Retirada': bgClass = 'bg-emerald-100 text-emerald-700 border-emerald-200'; break;
                                                         case 'Devolução': bgClass = 'bg-orange-100 text-orange-700 border-orange-200'; break;
                                                         case 'Ajustes Finais': bgClass = 'bg-pink-100 text-pink-700 border-pink-200'; break;
                                                         default: bgClass = 'bg-purple-100 text-purple-700 border-purple-200'; break;
                                                     }
-
                                                     return (
-                                                        <div key={a.id} className={`mx-1 h-6 flex items-center gap-1 text-[10px] ${bgClass} px-1.5 rounded-md font-bold truncate border relative z-20`} title={`${a.time} - ${a.type} - ${a.clientName || clients.find(c => c.id === a.clientId)?.name}`}>
-                                                            <span className="material-symbols-outlined text-[10px]">schedule</span>
-                                                            <span className="truncate">{a.time} {a.clientName || clients.find(c => c.id === a.clientId)?.name || 'Agendamento'}</span>
+                                                        <div key={a.id} className={`h-auto min-h-[20px] flex items-center gap-1 text-[9px] lg:text-[10px] ${bgClass} px-1.5 py-0.5 rounded-md font-bold border leading-tight`}>
+                                                            <span className="material-symbols-outlined text-[10px] sm:text-[12px] shrink-0">schedule</span>
+                                                            <div className="flex flex-col min-w-0">
+                                                                <span className="leading-none truncate">{a.type}</span>
+                                                                <span className="truncate font-medium opacity-80">{a.time} - {a.clientName || clients.find(c => c.id === a.clientId)?.name}</span>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
@@ -713,10 +537,71 @@ export default function Agenda() {
                                 })}
                             </div>
                         </div>
+
+                        {/* MOBILE MONTH LIST VIEW */}
+                        <div className="block lg:hidden space-y-4">
+                            {getCalendarDays.filter(d => d && d.getMonth() === viewStartDate.getMonth()).map((date, i) => {
+                                const dateStr = date.toISOString().split('T')[0];
+                                const isToday = dateStr === new Date().toISOString().split('T')[0];
+                                const dayAppts = calendarAppointments.filter(a => a.date === dateStr).sort((a, b) => a.time.localeCompare(b.time));
+                                const dayLogistics = calendarContracts.flatMap(c => {
+                                    const items = [];
+                                    if (c.startDate.split('T')[0] === dateStr) items.push({ ...c, logType: c.contractType === 'Venda' ? 'VENDA' : 'RETIRADA' });
+                                    if (c.contractType === 'Aluguel' && c.endDate.split('T')[0] === dateStr) items.push({ ...c, logType: 'DEVOLUÇÃO' });
+                                    return items;
+                                });
+                                if (dayAppts.length === 0 && dayLogistics.length === 0) return null;
+
+                                return (
+                                    <div key={i} className={`rounded-2xl border ${isToday ? 'border-primary bg-primary/5 shadow-sm' : 'border-gray-200 bg-white shadow-sm'} overflow-hidden`}>
+                                        <div className={`px-4 py-3 border-b flex items-center justify-between ${isToday ? 'border-primary/10 bg-primary/5' : 'border-gray-100 bg-gray-50'}`}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`text-center leading-none ${isToday ? 'text-primary' : 'text-gray-400'}`}>
+                                                    <span className="block text-xl font-black">{date.getDate()}</span>
+                                                    <span className="block text-[10px] uppercase font-bold">{date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
+                                                </div>
+                                                <div className={`h-8 w-px ${isToday ? 'bg-primary/20' : 'bg-gray-200'}`}></div>
+                                                <p className={`text-xs font-bold uppercase tracking-widest ${isToday ? 'text-primary' : 'text-gray-500'}`}>{date.toLocaleDateString('pt-BR', { weekday: 'long' })}</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-3 space-y-2">
+                                            {dayAppts.map(a => (
+                                                <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm relative overflow-hidden" onClick={() => { setSelectedDate(date); setIsMobileDetailOpen(true); }}>
+                                                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-purple-500"></div>
+                                                    <div className="flex flex-col items-center justify-center size-10 rounded-lg bg-gray-50 shrink-0">
+                                                        <span className="text-[10px] font-black text-navy">{a.time}</span>
+                                                        <span className="material-symbols-outlined text-[14px] text-gray-400">schedule</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-[10px] font-bold uppercase tracking-widest text-purple-600 mb-0.5">{a.type}</p>
+                                                        <p className="text-sm font-bold text-navy truncate">{clients.find(cl => cl.id === a.clientId)?.name || a.clientName}</p>
+                                                    </div>
+                                                    <span className="material-symbols-outlined text-gray-300">chevron_right</span>
+                                                </div>
+                                            ))}
+                                            {dayLogistics.map((c, idx) => (
+                                                <div key={`${c.id}-${idx}`} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-gray-100 shadow-sm relative overflow-hidden" onClick={() => { setSelectedDate(date); setIsMobileDetailOpen(true); }}>
+                                                    <div className={`absolute left-0 top-0 bottom-0 w-1 ${c.logType === 'DEVOLUÇÃO' ? 'bg-orange-500' : 'bg-emerald-500'}`}></div>
+                                                    <div className={`flex flex-col items-center justify-center size-10 rounded-lg shrink-0 ${c.logType === 'DEVOLUÇÃO' ? 'bg-orange-50 text-orange-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                                        <span className="material-symbols-outlined text-lg">{c.logType === 'DEVOLUÇÃO' ? 'input' : 'output'}</span>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${c.logType === 'DEVOLUÇÃO' ? 'text-orange-600' : 'text-emerald-600'}`}>{c.logType === 'DEVOLUÇÃO' ? 'Devolução' : 'Retirada'}</p>
+                                                        <p className="text-sm font-bold text-navy truncate">{clients.find(cl => cl.id === c.clientId)?.name}</p>
+                                                        <p className="text-[10px] text-gray-400">Contrato #{c.id.split('-')[2]}</p>
+                                                    </div>
+                                                    <span className="material-symbols-outlined text-gray-300">chevron_right</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 </div>
 
-                {/* RIGHT COLUMN: Persistent Day Detail Panel (Desktop Only) */}
+                {/* RIGHT COLUMN: Persistent Day Detail Panel */}
                 <div className="hidden lg:flex w-[400px] border-l border-gray-200 bg-white flex-col shrink-0 relative z-30 shadow-xl overflow-visible">
                     {selectedDate ? renderDayDetails() : (
                         <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -730,21 +615,11 @@ export default function Agenda() {
             {/* Mobile Day Detail Modal */}
             {isMobileDetailOpen && selectedDate && (
                 <div className="fixed inset-0 z-50 lg:hidden flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileDetailOpen(false)}>
-                    <div
-                        className="w-full h-[85vh] bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up relative"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        {/* Drag Handle */}
+                    <div className="w-full h-[85vh] bg-white rounded-t-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up relative" onClick={e => e.stopPropagation()}>
                         <div className="h-1.5 w-12 bg-gray-300 rounded-full mx-auto mt-3 absolute left-1/2 -translate-x-1/2 z-20" />
-
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setIsMobileDetailOpen(false)}
-                            className="absolute top-4 right-4 z-20 p-2 bg-black/20 text-white rounded-full hover:bg-black/40 backdrop-blur-md transition-all active:scale-95"
-                        >
+                        <button onClick={() => setIsMobileDetailOpen(false)} className="absolute top-4 right-4 z-20 p-2 bg-black/20 text-white rounded-full hover:bg-black/40 backdrop-blur-md transition-all active:scale-95">
                             <span className="material-symbols-outlined">close</span>
                         </button>
-
                         {renderDayDetails()}
                     </div>
                 </div>
@@ -771,17 +646,13 @@ export default function Agenda() {
                 onClose={() => setIsCancelContractModalOpen(false)}
                 onConfirm={() => {
                     if (selectedContractToCancel) {
-                        // 1. Update Contract Status
                         updateContractStatus(selectedContractToCancel, 'Cancelado');
-
-                        // 2. Release Items
                         const contract = contracts.find(c => c.id === selectedContractToCancel);
                         if (contract) {
                             contract.items.forEach(itemId => {
                                 updateItem(itemId, { status: 'Disponível', statusColor: 'primary' });
                             });
                         }
-
                         showToast('info', 'Contrato cancelado e itens liberados.');
                         setIsCancelContractModalOpen(false);
                     }
@@ -806,13 +677,7 @@ export default function Agenda() {
                 type={alertConfig.type}
             />
 
-            {/* CSS helper for stripes */}
-            <style>{`
-                .bg-stripes-gray {
-                    background-image: linear-gradient(45deg, #f3f4f6 25%, #e5e7eb 25%, #e5e7eb 50%, #f3f4f6 50%, #f3f4f6 75%, #e5e7eb 75%, #e5e7eb 100%);
-                    background-size: 10px 10px;
-                }
-            `}</style>
+            <style>{`.bg-stripes-gray { background-image: linear-gradient(45deg, #f3f4f6 25%, #e5e7eb 25%, #e5e7eb 50%, #f3f4f6 50%, #f3f4f6 75%, #e5e7eb 75%, #e5e7eb 100%); background-size: 10px 10px; }`}</style>
         </div>
     );
 }

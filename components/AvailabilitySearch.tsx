@@ -168,9 +168,9 @@ export default function AvailabilitySearch() {
 
                         <button
                             onClick={handleSearch}
-                            className="w-full py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-3 active:scale-95"
+                            className="w-full py-4 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-primary/20 hover:bg-blue-700 transition-all flex items-center justify-center gap-2 active:scale-95"
                         >
-                            <span className="material-symbols-outlined text-lg">search_spark</span>
+                            <span className="material-symbols-outlined text-lg">search</span>
                             Buscar Disponíveis
                         </button>
                     </div>

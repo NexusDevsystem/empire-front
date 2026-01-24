@@ -4,6 +4,7 @@ export const IMAGES = {
 
   // Branding
   logo: '/assets/logo.png',
+  logoShort: '/assets/logo-coroa.png',
 
   // Inventory / Items
   tuxedoBlue: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAkaIze_7rq8RJFCqkJQmc1WbxqycOLJ_Qq0hsenTpcLhSYQNgm-cSL7fW6Um8kg5fVV_QluwcsVjsvq_CqmaAkgF_0tZfVRogMFJkDq1DSmC84_E7anz-3accm01B30TI4WUyrb7t0GPrqtr2bJj-DkU7hT9ISRiCRermaWqrieNOM1AQCk52dbJaUFbN2_VDiW46uTT3KBQpt1W6k2fuc-iUbQdBM_kze43eCa7miCRMLkEK0nb_o3xnP4B-2n410d9-mtCrqae_g',

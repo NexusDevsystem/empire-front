@@ -305,7 +305,13 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                 const possibleUnits = virtualUnits.filter(u => u.item.id === itemId);
 
                 const cStart = new Date(contract.startDate);
-                const cEnd = new Date(contract.endDate);
+                let cEnd = new Date(contract.endDate);
+
+                // If it's a sale, it occupies the unit forever (for scheduling purposes)
+                if (contract.contractType === 'Venda') {
+                    cEnd = new Date(2100, 0, 1);
+                }
+
                 cStart.setHours(0, 0, 0, 0);
                 cEnd.setHours(0, 0, 0, 0);
 
@@ -360,14 +366,38 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
         });
 
         if (event) {
-            return {
-                status: 'booked',
-                label: `Reserva #${event.contract.id.split('-').slice(-1)[0]}`,
-                color: 'red',
-                contractId: event.contract.id
-            };
-        }
+            const isSale = event.contract.contractType === 'Venda';
 
+            // For sales, we only show 'Vendido' on the day of sale or after in the calendar,
+            // but in the status list it's always 'Vendido' if the sale already happened.
+            const saleDate = new Date(event.start).setHours(0, 0, 0, 0);
+            const checkDate = new Date(date).setHours(0, 0, 0, 0);
+
+            if (isSale) {
+                // If checking a date BEFORE the sale, it was still free then (in theory)
+                // but usually users want to see it as sold once it is.
+                // For the card view (today), we show Vendido.
+                if (checkDate >= saleDate) {
+                    return {
+                        status: 'sold',
+                        label: 'Vendido',
+                        color: 'gray',
+                        contractId: event.contract.id
+                    };
+                }
+            } else {
+                const d = new Date(date);
+                d.setHours(0, 0, 0, 0);
+                return {
+                    status: 'booked',
+                    label: `Alugado para: ${event.contract.clientName || 'Cliente'}`,
+                    color: 'red',
+                    contractId: event.contract.id,
+                    isStart: d.getTime() === event.start.getTime(),
+                    isEnd: d.getTime() === event.end.getTime()
+                };
+            }
+        }
         return { status: 'free', label: 'Livre', color: 'green' };
     };
 
@@ -397,7 +427,7 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
 
     return (
         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/60 backdrop-blur-sm p-0 md:p-4 animate-in fade-in duration-300">
-            <div className="bg-white w-full h-full md:w-full md:max-w-6xl md:h-[90vh] md:rounded-2xl rounded-none shadow-2xl overflow-hidden flex flex-col border border-gray-200">
+            <div className="bg-white w-full h-full md:w-full md:max-w-6xl md:h-[90vh] md:rounded-2xl rounded-none shadow-2xl flex flex-col border border-gray-200 overflow-y-auto">
 
                 {/* Header - Glass/Premium feel */}
                 <div className="relative h-auto min-h-[180px] md:h-48 shrink-0 overflow-hidden bg-navy">
@@ -427,12 +457,26 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                             </button>
                         </div>
 
-                        {/* Inventory Stat (Desktop) */}
-                        <div className="hidden md:block text-right text-white mb-2">
-                            <p className="text-4xl font-black leading-none tracking-tighter">
-                                {currentItems.reduce((sum, i) => sum + (i.totalQuantity || 1), 0)}
-                            </p>
-                            <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Acervo Total</p>
+                        {/* Inventory Stats (Desktop) */}
+                        <div className="hidden md:flex gap-6 text-right text-white mb-2">
+                            <div className="flex flex-col gap-1">
+                                <p className="text-2xl md:text-3xl font-black leading-none tracking-tighter">
+                                    {getDailyStats(new Date()).availableCount}
+                                </p>
+                                <p className="text-[9px] uppercase font-bold text-gray-400 tracking-widest">Disponíveis</p>
+                            </div>
+                            <div className="flex flex-col gap-1 border-l border-white/10 pl-6">
+                                <p className="text-2xl md:text-3xl font-black leading-none tracking-tighter text-white/80">
+                                    {getDailyStats(new Date()).busyUnits.filter(u => u.contractId && u.label.includes('Alugado')).length}
+                                </p>
+                                <p className="text-[9px] uppercase font-bold text-gray-400 tracking-widest">Alugados</p>
+                            </div>
+                            <div className="flex flex-col gap-1 border-l border-white/10 pl-6">
+                                <p className="text-2xl md:text-3xl font-black leading-none tracking-tighter text-white/50">
+                                    {virtualUnits.length}
+                                </p>
+                                <p className="text-[9px] uppercase font-bold text-gray-400 tracking-widest">Total</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -461,13 +505,13 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center w-full sm:w-auto gap-3">
                         {viewMode === 'calendar' && (
-                            <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200 flex-1 sm:flex-none justify-between sm:justify-start">
+                            <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200 justify-between sm:justify-start">
                                 <button onClick={() => changeMonth(-1)} className="size-8 flex items-center justify-center hover:bg-white hover:shadow rounded text-gray-600">
                                     <span className="material-symbols-outlined text-lg">chevron_left</span>
                                 </button>
-                                <span className="text-[11px] md:text-xs font-bold text-navy w-24 md:w-28 text-center uppercase tracking-wider">
+                                <span className="text-[11px] md:text-xs font-bold text-navy flex-1 text-center uppercase tracking-wider">
                                     {currentDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
                                 </span>
                                 <button onClick={() => changeMonth(1)} className="size-8 flex items-center justify-center hover:bg-white hover:shadow rounded text-gray-600">
@@ -480,7 +524,7 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={startProductEdit}
-                                    className="size-10 flex items-center justify-center rounded-xl bg-gold/10 text-gold border border-gold/20 hover:bg-gold hover:text-navy transition-all"
+                                    className="size-10 flex items-center justify-center rounded-xl bg-gold/10 text-gold border border-gold/20 hover:bg-gold hover:text-navy transition-all shrink-0"
                                     title="Editar Informações do Produto"
                                 >
                                     <span className="material-symbols-outlined text-[20px]">edit_note</span>
@@ -490,12 +534,12 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                                         setIsSelectionMode(!isSelectionMode);
                                         setSelectedIds([]);
                                     }}
-                                    className={`size-10 flex items-center justify-center rounded-xl transition-all border ${isSelectionMode ? 'bg-red-50 text-red-600 border-red-200 shadow-inner' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
+                                    className={`size-10 flex items-center justify-center rounded-xl transition-all border shrink-0 ${isSelectionMode ? 'bg-red-50 text-red-600 border-red-200 shadow-inner' : 'bg-gray-50 text-gray-400 border-gray-100'}`}
                                     title={isSelectionMode ? 'Cancelar Seleção' : 'Selecionar Vários'}
                                 >
                                     <span className="material-symbols-outlined text-[20px]">{isSelectionMode ? 'close' : 'checklist'}</span>
                                 </button>
-                                <button onClick={handleAddUnit} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl text-xs md:text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95">
+                                <button onClick={handleAddUnit} className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-xs md:text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95 whitespace-nowrap">
                                     <span className="material-symbols-outlined text-lg md:text-xl">add_circle</span>
                                     <span>Adicionar Unidade</span>
                                 </button>
@@ -505,7 +549,7 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                 </div>
 
                 {/* Main Content */}
-                <div className="flex-1 overflow-auto bg-gray-50/50 flex flex-col">
+                <div className="flex-1 bg-gray-50/50 flex flex-col">
 
                     {/* LIST VIEW (RESOURCE CARDS) */}
                     {viewMode === 'list' && (
@@ -513,9 +557,9 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                             {/* Selection Bar */}
                             {isSelectionMode && selectedIds.length > 0 && (
                                 <div className="sticky top-0 z-40 -mx-4 md:-mx-8 mb-6 px-4 md:px-8 py-2 bg-gray-50/80 backdrop-blur-md animate-in slide-in-from-top-4 duration-300">
-                                    <div className="bg-navy rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-4 border border-white/10">
-                                        <div className="flex items-center gap-3">
-                                            <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center text-white">
+                                    <div className="bg-navy rounded-2xl p-4 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4 border border-white/10">
+                                        <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-start">
+                                            <div className="size-10 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0">
                                                 <span className="material-symbols-outlined">checklist</span>
                                             </div>
                                             <div>
@@ -523,19 +567,19 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                                                 <p className="text-gray-400 text-[10px] uppercase font-bold tracking-widest leading-none">Ação em massa ativada</p>
                                             </div>
                                         </div>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 w-full md:w-auto">
                                             <button
                                                 onClick={() => {
                                                     setIsSelectionMode(false);
                                                     setSelectedIds([]);
                                                 }}
-                                                className="px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
+                                                className="flex-1 md:flex-none px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors border border-transparent hover:border-white/10"
                                             >
                                                 Cancelar
                                             </button>
                                             <button
                                                 onClick={handleBulkDelete}
-                                                className="px-6 py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-600/20 active:scale-95 flex items-center gap-2"
+                                                className="flex-1 md:flex-none px-6 py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 shadow-lg shadow-red-600/20 active:scale-95 flex items-center justify-center gap-2"
                                             >
                                                 <span className="material-symbols-outlined text-[18px]">delete</span>
                                                 Excluir Unidades
@@ -601,14 +645,16 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                                                 </div>
                                             </div>
 
-                                            <div className={`mt-auto flex items-center gap-3 p-3 rounded-xl border ${todayStatus.status === 'free' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-gray-50 border-gray-100 text-gray-700'}`}>
-                                                <div className={`size-3 rounded-full ${colorMap[todayStatus.color] || 'bg-primary'} animate-pulse`} />
+                                            <div className={`mt-auto flex items-center gap-3 p-3 rounded-xl border ${todayStatus.status === 'free' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : todayStatus.status === 'sold' ? 'bg-gray-100 border-gray-200 text-gray-500' : 'bg-gray-50 border-gray-100 text-gray-700'}`}>
+                                                <div className={`size-3 rounded-full ${colorMap[todayStatus.color] || 'bg-primary'} ${todayStatus.status !== 'sold' ? 'animate-pulse' : ''}`} />
                                                 <div className="flex flex-col">
                                                     <span className="text-xs font-black uppercase tracking-wider leading-none">
                                                         {todayStatus.status === 'free' && unit.item.totalQuantity === 1 ? unit.item.status : todayStatus.label}
                                                     </span>
                                                     {todayStatus.contractId && (
-                                                        <span className="text-[9px] font-medium opacity-50 mt-0.5">Clique para detalhes no calendário</span>
+                                                        <span className="text-[9px] font-medium opacity-50 mt-0.5">
+                                                            {todayStatus.status === 'sold' ? 'Baixado por Venda' : 'Clique para detalhes no calendário'}
+                                                        </span>
                                                     )}
                                                 </div>
                                             </div>
@@ -629,125 +675,196 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
 
 
                     {/* CALENDAR VIEW (STANDARD GRID) */}
+                    {/* CALENDAR VIEW (STANDARD GRID) */}
                     {viewMode === 'calendar' && (
-                        <div className="flex-1 overflow-auto bg-white flex flex-col">
-                            {/* Horizontal Scroll Wrapper */}
-                            <div className="min-w-[800px] flex-1 flex flex-col">
-                                {/* Days Header */}
-                                <div className="grid grid-cols-7 border-b border-gray-200">
-                                    {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((d) => (
-                                        <div key={d} className="text-center py-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 bg-gray-50/50 sticky top-0 z-20">
-                                            {d}
+                        <div className="flex-1 overflow-auto bg-white p-4 lg:p-6">
+
+                            {/* MOBILE AGENDA VIEW (< lg) */}
+                            <div className="block lg:hidden space-y-4">
+                                {calendarDays.filter(d => d).map((date, i) => {
+                                    if (!date) return null;
+                                    const { busyUnits } = getDailyStats(date); // Reusing existing helper!
+                                    if (busyUnits.length === 0) return null; // Skip empty days
+
+                                    const isToday = date.toDateString() === new Date().toDateString();
+
+                                    return (
+                                        <div key={i} className={`rounded-xl border ${isToday ? 'border-primary bg-primary/5' : 'border-gray-100 bg-gray-50'} p-4`}>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className={`text-center leading-none ${isToday ? 'text-primary' : 'text-gray-400'}`}>
+                                                    <span className="block text-xl font-black">{date.getDate()}</span>
+                                                    <span className="block text-[10px] uppercase font-bold">{date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}</span>
+                                                </div>
+                                                <div className="h-8 w-px bg-gray-200 mx-2"></div>
+                                                <div className="flex-1">
+                                                    <p className={`text-xs font-bold uppercase tracking-widest ${isToday ? 'text-primary' : 'text-gray-500'}`}>
+                                                        {date.toLocaleDateString('pt-BR', { weekday: 'long' })}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                {busyUnits.map((status, idx) => {
+                                                    const unit = virtualUnits.find(u => u.virtualId === status.virtualId);
+                                                    const unitIndex = unit?.unitIndex || '?';
+
+                                                    let bgClass = '';
+                                                    let content = null;
+
+                                                    // Reusing styles from grid but adapted for card
+                                                    if (status.color) { // Physical status (blocked)
+                                                        const colorMap: Record<string, string> = {
+                                                            'purple': 'bg-purple-100 text-purple-700 border-purple-200',
+                                                            'cyan': 'bg-cyan-100 text-cyan-700 border-cyan-200',
+                                                            'orange': 'bg-orange-100 text-orange-700 border-orange-200',
+                                                            'gray': 'bg-gray-100 text-gray-700 border-gray-200',
+                                                            'red': 'bg-red-100 text-red-700 border-red-200',
+                                                            'green': 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                        };
+                                                        bgClass = colorMap[status.color] || 'bg-gray-100 text-gray-700 border-gray-200';
+                                                        // Special handling for rental events to match grid logic
+                                                        if (status.label.includes('Retirada')) {
+                                                            bgClass = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+                                                        } else if (status.label.includes('Devolução')) {
+                                                            bgClass = 'bg-orange-100 text-orange-700 border-orange-200';
+                                                        } else if (status.label.includes('Alugado')) {
+                                                            bgClass = 'bg-blue-100 text-blue-700 border-blue-200';
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <div key={idx} className={`p-3 rounded-lg border ${bgClass} flex items-center gap-3`}>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[10px] font-black uppercase tracking-widest opacity-70">Unidade {unitIndex}</span>
+                                                                <span className="text-xs font-bold uppercase tracking-tight">{status.label}</span>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                                {/* Partial Empty State for Mobile if no events in month */}
+                                {calendarDays.every(d => !d || getDailyStats(d).busyUnits.length === 0) && (
+                                    <div className="py-12 flex flex-col items-center justify-center text-gray-400 opacity-50 text-center">
+                                        <span className="material-symbols-outlined text-4xl mb-2">event_busy</span>
+                                        <p className="text-xs font-bold uppercase tracking-widest">Nenhum evento neste mês</p>
+                                    </div>
+                                )}
+                            </div>
+
+
+                            {/* DESKTOP GRID VIEW (Original) */}
+                            <div className="hidden lg:block overflow-x-auto pb-4 h-full">
+                                {/* Gapless Grid Container - Autosizing Rows */}
+                                <div className="grid grid-cols-7 gap-0 auto-rows-auto border-t border-l border-gray-200 rounded-xl lg:min-w-[800px]">
+                                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, idx) => (
+                                        <div key={idx} className="text-center font-black text-gray-400 text-[10px] lg:text-sm uppercase py-2 border-b border-r border-gray-200 bg-gray-50 sticky top-0 z-20">
+                                            {day}
                                         </div>
                                     ))}
-                                </div>
+                                    {calendarDays.map((date, i) => {
+                                        if (!date) return <div key={i} className="bg-gray-50/20 border-r border-b border-gray-200 min-h-[120px]" />;
 
-                                {/* Grid (Per-Item Rows) */}
-                                <div className="flex-1 overflow-y-auto">
-                                    <div className="grid grid-cols-7 border-l border-t border-gray-200 auto-rows-fr min-h-[120px]">
-                                        {calendarDays.map((date, i) => {
-                                            if (!date) return <div key={i} className="bg-gray-50/10 border-r border-b border-gray-200 min-h-[120px]"></div>;
+                                        const isToday = date.toDateString() === new Date().toDateString();
 
-                                            const { availableCount } = getDailyStats(date);
-                                            const isToday = date.toDateString() === new Date().toDateString();
-
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className={`border-r border-b border-gray-200 flex flex-col transition-all hover:bg-gray-50/30 min-h-[140px] py-2 gap-1 ${isToday ? 'bg-primary/5' : 'bg-white'}`}
-                                                >
-                                                    {/* Date Header */}
-                                                    <div className="flex justify-between items-start px-2.5 mb-2">
-                                                        <span className={`text-xs font-black tracking-tight ${isToday ? 'text-primary' : 'text-gray-300'}`}>
-                                                            {date.getDate()}
-                                                        </span>
-                                                        {isToday && (
-                                                            <span className="size-1.5 rounded-full bg-primary animate-ping"></span>
+                                        return (
+                                            <div
+                                                key={i}
+                                                className={`
+                                                    bg-white border-r border-b relative flex flex-col transition-all hover:bg-gray-50 min-h-[120px] 
+                                                    ${isToday ? 'bg-primary/5' : ''} 
+                                                `}
+                                            >
+                                                {/* Date Number */}
+                                                <div className="flex justify-between items-center p-1 lg:p-2">
+                                                    <span className={`text-[9px] lg:text-[11px] font-black ${isToday ? 'text-primary' : 'text-gray-400'}`}>
+                                                        {date.getDate()} {date.getDate() === 1 && (
+                                                            <span className="ml-1 uppercase text-[9px]">
+                                                                {date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '')}
+                                                            </span>
                                                         )}
-                                                    </div>
+                                                    </span>
+                                                </div>
 
-                                                    {/* Items Loop - Consistent Vertical Slots */}
-                                                    <div className="flex flex-col gap-[2.5px] w-full relative">
-                                                        {virtualUnits.map((unit, idx) => {
-                                                            const dayStatus = getItemDayStatus(unit, date);
+                                                {/* Items Loop - Consistent Vertical Slots */}
+                                                <div className="flex flex-col gap-[2.5px] w-full relative px-1 pb-1">
+                                                    {virtualUnits.map((unit, idx) => {
+                                                        const dayStatus: any = getItemDayStatus(unit, date);
 
-                                                            // Continuity Logic
-                                                            const getStatusAt = (offset: number) => {
-                                                                const d = new Date(date);
-                                                                d.setDate(date.getDate() + offset);
-                                                                return getItemDayStatus(unit, d);
+                                                        let content = null;
+                                                        let bgClass = '';
+
+                                                        // 1. BLOCKED (Physical)
+                                                        if (dayStatus.status === 'blocked') {
+                                                            const colorMap: Record<string, string> = {
+                                                                'purple': 'bg-purple-100 text-purple-700 border-purple-200',
+                                                                'cyan': 'bg-cyan-100 text-cyan-700 border-cyan-200',
+                                                                'orange': 'bg-orange-100 text-orange-700 border-orange-200',
+                                                                'gray': 'bg-gray-100 text-gray-700 border-gray-200'
                                                             };
-                                                            const prev = i > 0 && calendarDays[i - 1] ? getStatusAt(-1) : null;
-                                                            const next = i < calendarDays.length - 1 && calendarDays[i + 1] ? getStatusAt(1) : null;
-
-                                                            let content = null;
-                                                            let bgClass = '';
-
-                                                            // 1. BLOCKED (Physical)
-                                                            if (dayStatus.status === 'blocked') {
-                                                                const colorMap: Record<string, string> = {
-                                                                    'purple': 'bg-purple-600',
-                                                                    'cyan': 'bg-cyan-500',
-                                                                    'orange': 'bg-orange-500',
-                                                                    'gray': 'bg-gray-400'
-                                                                };
-                                                                bgClass = colorMap[dayStatus.color] || 'bg-gray-400';
-
-                                                                const isVisualStart = prev?.status !== 'blocked' || prev?.label !== dayStatus.label || date.getDay() === 0;
-                                                                const isVisualEnd = next?.status !== 'blocked' || next?.label !== dayStatus.label || date.getDay() === 6;
-
-                                                                bgClass += ` text-white shadow-sm flex items-center justify-center relative z-10 whitespace-nowrap h-5
-                                                                    ${isVisualStart ? 'ml-1 rounded-l-md pl-1' : '-ml-[1px]'} 
-                                                                    ${isVisualEnd ? 'mr-1 rounded-r-md' : '-mr-[1px]'}
-                                                                    ${(!isVisualStart || !isVisualEnd) ? 'w-[calc(100%+2px)]' : 'w-[calc(100%-0.5rem)]'}
-                                                                `;
-
-                                                                if (isVisualStart) {
-                                                                    content = <span className="text-[8px] font-black uppercase tracking-widest truncate px-1">Unid. {idx + 1} - {dayStatus.label}</span>;
-                                                                }
-                                                            }
-                                                            // 2. BOOKED (Contract)
-                                                            else if (dayStatus.status === 'booked' && dayStatus.contractId) {
-                                                                const isVisualStart = prev?.status !== 'booked' || prev?.contractId !== dayStatus.contractId || date.getDay() === 0;
-                                                                const isVisualEnd = next?.status !== 'booked' || next?.contractId !== dayStatus.contractId || date.getDay() === 6;
-
-                                                                const dynamicStyle = { backgroundColor: getContractColor(dayStatus.contractId || '') };
-                                                                const connectionStyles = `
-                                                                    ${isVisualStart ? 'ml-1 rounded-l-md pl-1.5' : '-ml-[1px]'} 
-                                                                    ${isVisualEnd ? 'mr-1 rounded-r-md' : '-mr-[1px]'}
-                                                                    ${(!isVisualStart || !isVisualEnd) ? 'w-[calc(100%+2px)]' : 'w-[calc(100%-0.5rem)]'}
-                                                                `;
-
-                                                                if (isVisualStart) {
-                                                                    content = <span className="text-[8px] font-black uppercase tracking-widest truncate">Unid. {idx + 1}</span>;
-                                                                }
-
-                                                                return (
-                                                                    <div
-                                                                        key={unit.virtualId}
-                                                                        className={`text-[white] shadow-sm flex items-center relative z-10 whitespace-nowrap h-5 text-[10px] leading-none cursor-default transition-all hover:brightness-110 ${connectionStyles}`}
-                                                                        style={dynamicStyle}
-                                                                        title={`#${unit.virtualId}: ${dayStatus.label}`}
-                                                                    >
-                                                                        {content}
+                                                            bgClass = colorMap[dayStatus.color] || 'bg-gray-100 text-gray-700 border-gray-200';
+                                                            bgClass += ' border rounded-md shadow-sm z-10';
+                                                            content = <span className="text-[8px] font-black uppercase tracking-widest truncate px-1.5">{dayStatus.label}</span>;
+                                                        }
+                                                        // 2. EVENT CARDS (Contract)
+                                                        else if (dayStatus.status === 'booked' && dayStatus.contractId) {
+                                                            if (dayStatus.isStart && dayStatus.isEnd) {
+                                                                // Single Day
+                                                                bgClass = 'bg-blue-100 text-blue-700 border border-blue-200 rounded-md shadow-sm z-10';
+                                                                content = (
+                                                                    <div className="flex items-center gap-1 px-1.5 w-full">
+                                                                        <span className="material-symbols-outlined text-[10px]">event</span>
+                                                                        <span className="text-[8px] font-black uppercase tracking-widest truncate">Unid. {unit.unitIndex} • Evento</span>
                                                                     </div>
                                                                 );
-                                                            }
-                                                            else {
+                                                            } else if (dayStatus.isStart) {
+                                                                // Pickup / Start
+                                                                bgClass = 'bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-md shadow-sm z-10';
+                                                                content = (
+                                                                    <div className="flex items-center gap-1 px-1.5 w-full">
+                                                                        <span className="material-symbols-outlined text-[10px]">output</span>
+                                                                        <span className="text-[8px] font-black uppercase tracking-widest truncate">Unid. {unit.unitIndex} • Retirada</span>
+                                                                    </div>
+                                                                );
+                                                            } else if (dayStatus.isEnd) {
+                                                                // Return / End
+                                                                bgClass = 'bg-orange-100 text-orange-700 border border-orange-200 rounded-md shadow-sm z-10';
+                                                                content = (
+                                                                    <div className="flex items-center gap-1 px-1.5 w-full">
+                                                                        <span className="material-symbols-outlined text-[10px]">input</span>
+                                                                        <span className="text-[8px] font-black uppercase tracking-widest truncate">Unid. {unit.unitIndex} • Devolução</span>
+                                                                    </div>
+                                                                );
+                                                            } else {
+                                                                // Middle Days - Render Empty for "No continuous bar"
                                                                 return <div key={unit.virtualId} className="h-5" />;
                                                             }
+                                                        }
+                                                        // 3. SOLD (Contract)
+                                                        else if (dayStatus.status === 'sold' && dayStatus.contractId) {
+                                                            // For Sold, keep it continuous or just one? Usually "Mark as sold"
+                                                            // Let's keep Sold as a continuous gray block or just a label on start
+                                                            // User asked for "Cards on start/end" for rentals implies rentals.
+                                                            // Sold is permanent. Let's keep it simple.
+                                                            bgClass = 'bg-gray-100 text-gray-500 border border-gray-200 rounded-md shadow-sm z-10';
+                                                            content = <span className="text-[8px] font-black uppercase tracking-widest truncate px-1.5 line-through">VENDIDO</span>;
+                                                        }
+                                                        else {
+                                                            return <div key={unit.virtualId} className="h-5" />;
+                                                        }
 
-                                                            return (
-                                                                <div key={unit.virtualId} className={`h-5 text-[10px] leading-none ${bgClass} cursor-default transition-all hover:brightness-110`} title={`#${unit.virtualId}: ${dayStatus.label}`}>
-                                                                    {content}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                        return (
+                                                            <div key={unit.virtualId} className={`h-5 flex items-center relative whitespace-nowrap text-[10px] leading-none cursor-default transition-all hover:brightness-110 ${bgClass}`} title={`#${unit.virtualId}: ${dayStatus.label}`}>
+                                                                {content}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -892,8 +1009,8 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                     <div className="flex items-center gap-1.5"><div className="size-3 rounded-md bg-purple-600 shadow-sm"></div> <span className="uppercase font-bold tracking-wider">No Atelier</span></div>
                     <div className="flex items-center gap-1.5"><div className="size-3 rounded-md bg-cyan-500 shadow-sm"></div> <span className="uppercase font-bold tracking-wider">Lavanderia</span></div>
                     <div className="flex items-center gap-1.5"><div className="size-3 rounded-md bg-orange-500 shadow-sm"></div> <span className="uppercase font-bold tracking-wider">Devolução</span></div>
+                    <div className="flex items-center gap-1.5"><div className="size-3 rounded-md bg-gray-400 shadow-sm"></div> <span className="uppercase font-bold tracking-wider">Vendido</span></div>
                 </div>
-
                 {/* Confirmation Modals */}
                 {deleteConfirmId && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/90 backdrop-blur-sm p-4">

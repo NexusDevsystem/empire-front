@@ -68,7 +68,7 @@ export interface Transaction {
     date: string; // ISO Date String
     contractId?: string; // Optional link to a contract
 }
-export type EventType = 'Casamento' | 'Formatura' | 'Debutante' | 'Corporativo' | 'Noivado' | 'Outro';
+export type EventType = string;
 
 export interface Contract {
     id: string; // e.g. #CN-2023-849

@@ -6,7 +6,6 @@ import NewContractModal from './components/NewContractModal';
 import Dashboard from './components/Dashboard';
 import Inventory from './components/Inventory';
 import Agenda from './components/Agenda';
-import Atelier from './components/Atelier';
 import Logistics from './components/Logistics';
 import Contracts from './components/Contracts';
 import Clients from './components/Clients';
@@ -17,6 +16,7 @@ import AvailabilitySearch from './components/AvailabilitySearch';
 
 import PendingApprovalScreen from './components/PendingApprovalScreen';
 import NotificationBell from './components/NotificationBell';
+import SystemHistory from './components/SystemHistory';
 
 export default function App() {
   const { showWizard, openWizard, closeWizard, currentView, navigateTo, user, isLoading, profile, signOut } = useApp();
@@ -36,7 +36,6 @@ export default function App() {
       case 'dashboard': return <Dashboard />;
       case 'inventory': return <Inventory />;
       case 'agenda': return <Agenda />;
-      case 'atelier': return <Atelier />;
       case 'logistics': return <Logistics />;
       case 'contracts': return <Contracts />;
       case 'clients': return <Clients />;
@@ -44,6 +43,7 @@ export default function App() {
       case 'team': return <Team />;
       case 'settings': return <Settings />;
       case 'availability': return <AvailabilitySearch />;
+      case 'history': return <SystemHistory />;
       default: return <Agenda />;
     }
   };
@@ -67,9 +67,8 @@ export default function App() {
     {
       label: 'OPERACIONAL',
       items: [
-        { id: 'inventory', icon: 'checkroom', label: 'Vestuário' },
-        { id: 'atelier', icon: 'content_cut', label: 'Manutenção' },
         { id: 'logistics', icon: 'local_laundry_service', label: 'Logística' },
+        { id: 'inventory', icon: 'checkroom', label: 'Vestuário' },
       ]
     },
     {
@@ -77,6 +76,7 @@ export default function App() {
       items: [
         { id: 'financial', icon: 'attach_money', label: 'Financeiro' },
         { id: 'team', icon: 'badge', label: 'Equipe' },
+        { id: 'history', icon: 'history', label: 'Histórico' },
         { id: 'settings', icon: 'settings', label: 'Configurações' },
       ]
     },
@@ -107,10 +107,10 @@ export default function App() {
           `}
       >
         {/* Brand */}
-        <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center p-2' : 'justify-center p-4'} relative group border-b border-gray-50`}>
+        <div className={`flex items-start ${isSidebarCollapsed ? 'justify-center p-0' : 'justify-center p-0'} relative group border-b border-gray-50 overflow-hidden ${isSidebarCollapsed ? 'h-14' : 'h-36'}`}>
           {!isSidebarCollapsed && (
             IMAGES.logo ? (
-              <img src={IMAGES.logo} alt="Logo" className="w-full h-auto max-h-32 object-contain" />
+              <img src={IMAGES.logo} alt="Logo" className="w-full h-auto -mt-16" />
             ) : (
               <div className="flex items-center gap-3">
                 <div className="size-8 rounded bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
@@ -125,33 +125,33 @@ export default function App() {
           )}
 
           {isSidebarCollapsed && (
-            <div className="size-10 rounded bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
-              <span className="material-symbols-outlined text-white text-[20px]">diamond</span>
+            <div className="size-12 flex items-center justify-center shrink-0">
+              <img src={IMAGES.logoShort} alt="Logo" className="w-full h-auto object-contain" />
             </div>
           )}
 
-          {/* Toggle Button (Desktop Only) */}
-          <button
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className={`
-              hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 size-6 bg-white border border-gray-200 rounded-full items-center justify-center text-gray-400 hover:text-primary hover:border-primary transition-all z-10 shadow-sm
-              ${isSidebarCollapsed ? 'rotate-180' : ''}
-            `}
-          >
-            <span className="material-symbols-outlined text-[16px]">chevron_left</span>
-          </button>
-
-          {/* Close Button (Mobile Only) */}
-          <button
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="absolute right-4 top-1 md:hidden text-gray-400 hover:text-navy"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
         </div>
 
+        {/* Toggle Button (Desktop Only) */}
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          className={`
+            hidden md:flex absolute -right-[14px] ${isSidebarCollapsed ? 'top-10' : 'top-32'} -translate-y-1/2 size-7 bg-white border border-gray-200 rounded-lg items-center justify-center text-gray-400 hover:text-primary hover:border-primary transition-all z-50 shadow-md
+          `}
+        >
+          <span className="material-symbols-outlined text-[18px]">side_navigation</span>
+        </button>
+
+        {/* Close Button (Mobile Only) */}
+        <button
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="absolute right-4 top-1 md:hidden text-gray-400 hover:text-navy"
+        >
+          <span className="material-symbols-outlined">close</span>
+        </button>
+
         {/* Action Button */}
-        <div className={`${isSidebarCollapsed ? 'px-4' : 'px-6'} mb-6 transition-all`}>
+        <div className={`${isSidebarCollapsed ? 'px-4' : 'px-6'} mb-6 ${isSidebarCollapsed ? 'mt-4' : 'mt-10'} transition-all`}>
           <button
             onClick={() => { openWizard(); setIsMobileMenuOpen(false); }}
             className={`w-full flex items-center justify-center gap-2 bg-primary text-white ${isSidebarCollapsed ? 'h-12 w-12 rounded-full mx-auto' : 'h-11 rounded-xl'} font-bold hover:bg-primary/90 shadow-lg shadow-primary/30 transition-all active:scale-95 group overflow-hidden`}

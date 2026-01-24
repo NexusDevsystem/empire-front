@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { AreaChart, Area, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { useApp } from '../contexts/AppContext';
+
+const COLORS = ['#0f172a', '#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 import NewTransactionModal from './NewTransactionModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -128,7 +130,12 @@ export default function Financial() {
         const netProfit = totalRevenue - totalExpenses;
         const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
-        return { totalRevenue, pendingRevenue, totalExpenses, netProfit, margin };
+        // 5. Additional KPIs
+        const successfulContracts = contracts.filter(c => c.status !== 'Cancelado');
+        const avgTicket = successfulContracts.length > 0 ? totalRevenue / successfulContracts.length : 0;
+        const revenueProjection = totalRevenue + pendingRevenue;
+
+        return { totalRevenue, pendingRevenue, totalExpenses, netProfit, margin, avgTicket, revenueProjection };
     }, [contracts, transactions]);
 
     // Chart Data (Last 6 Months)
@@ -175,6 +182,50 @@ export default function Financial() {
         }
         return data;
     }, [contracts, transactions]);
+
+    // Data for New Charts
+    const revenueByType = useMemo(() => {
+        const rental = contracts.filter(c => c.contractType === 'Aluguel' && c.status !== 'Cancelado').reduce((acc, c) => acc + (c.paidAmount || 0), 0);
+        const sale = contracts.filter(c => c.contractType === 'Venda' && c.status !== 'Cancelado').reduce((acc, c) => acc + (c.paidAmount || 0), 0);
+        const manual = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
+
+        return [
+            { name: 'Aluguel', value: rental },
+            { name: 'Venda Geral', value: sale + manual }
+        ];
+    }, [contracts, transactions]);
+
+    const expenseCategories = useMemo(() => {
+        const cats: any = {};
+        transactions.filter(t => t.type === 'expense').forEach(t => {
+            cats[t.category] = (cats[t.category] || 0) + t.amount;
+        });
+        return Object.entries(cats)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a: any, b: any) => b.value - a.value)
+            .slice(0, 5);
+    }, [transactions]);
+
+    const eventDistribution = useMemo(() => {
+        const events: any = {};
+        contracts.filter(c => c.status !== 'Cancelado' && c.eventType).forEach(c => {
+            events[c.eventType!] = (events[c.eventType!] || 0) + 1;
+        });
+        return Object.entries(events)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a: any, b: any) => (b.value as number) - (a.value as number))
+            .slice(0, 5);
+    }, [contracts]);
+
+    const paymentMethods = useMemo(() => {
+        const methods: any = {};
+        contracts.filter(c => c.status !== 'Cancelado' && c.paymentMethod).forEach(c => {
+            methods[c.paymentMethod!] = (methods[c.paymentMethod!] || 0) + 1;
+        });
+        return Object.entries(methods)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a: any, b: any) => (b.value as number) - (a.value as number));
+    }, [contracts]);
 
     // Combined Recent Transactions List
     const recentActivity = useMemo(() => {
@@ -330,14 +381,24 @@ export default function Financial() {
                 </div>
 
                 {/* 4. Main Chart: Cash Flow */}
-                <div className="md:col-span-2 bg-white rounded-2xl md:rounded-[32px] p-6 md:p-8 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-                    <div className="flex justify-between items-center mb-6 md:mb-8">
+                <div className="md:col-span-3 bg-white rounded-2xl md:rounded-[32px] p-6 md:p-8 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-8 gap-4">
                         <div>
-                            <h3 className="text-base md:text-xl font-bold text-navy">Fluxo de Caixa Real</h3>
-                            <p className="text-[10px] md:text-xs text-gray-500 font-medium">Entradas vs Saídas Efetivas</p>
+                            <h3 className="text-lg md:text-xl font-black text-navy uppercase tracking-tight">Fluxo de Caixa Real</h3>
+                            <p className="text-[10px] md:text-xs text-gray-500 font-bold uppercase tracking-widest">Entradas vs Saídas Efetivas (6 Meses)</p>
+                        </div>
+                        <div className="flex items-center gap-6 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">
+                            <div className="flex items-center gap-2">
+                                <div className="size-3 rounded-full bg-emerald-500"></div>
+                                <span className="text-[10px] font-black text-navy uppercase">Receitas</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="size-3 rounded-full bg-red-500"></div>
+                                <span className="text-[10px] font-black text-navy uppercase">Despesas</span>
+                            </div>
                         </div>
                     </div>
-                    <div className="h-[250px] md:h-[300px] w-full">
+                    <div className="h-[250px] md:h-[350px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={chartData}>
                                 <defs>
@@ -351,40 +412,123 @@ export default function Financial() {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11, fontWeight: 600 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 11 }} tickFormatter={(val) => `R$${val / 1000}k`} />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 800 }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 800 }} tickFormatter={(val) => `R$${val / 1000}k`} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #f3f4f6', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
-                                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                    contentStyle={{ backgroundColor: '#fff', borderRadius: '16px', border: 'none', boxShadow: '0 10px 40px rgba(15,23,42,0.12)', padding: '12px' }}
+                                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                                    formatter={(value: number) => [`R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, '']}
                                 />
-                                <Area type="monotone" dataKey="Receita" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                                <Area type="monotone" dataKey="Despesas" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorExp)" />
+                                <Area type="monotone" dataKey="Receita" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
+                                <Area type="monotone" dataKey="Despesas" stroke="#ef4444" strokeWidth={4} fillOpacity={1} fill="url(#colorExp)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* 5. Accounts Receivable List */}
+                {/* NEW INSIGHTS ROW */}
+                <div className="md:col-span-1 bg-white rounded-2xl md:rounded-[32px] p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <h3 className="text-sm font-black text-navy uppercase tracking-widest mb-6">Mix de Faturamento</h3>
+                    <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie data={revenueByType} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                    {revenueByType.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
+                                />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="md:col-span-1 bg-white rounded-2xl md:rounded-[32px] p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <h3 className="text-sm font-black text-navy uppercase tracking-widest mb-6">Top Gastos</h3>
+                    <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={expenseCategories} layout="vertical" margin={{ left: 20 }}>
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#1e293b' }} width={80} />
+                                <Tooltip
+                                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                    cursor={{ fill: '#f8fafc' }}
+                                />
+                                <Bar dataKey="value" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="md:col-span-1 bg-white rounded-2xl md:rounded-[32px] p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <h3 className="text-sm font-black text-navy uppercase tracking-widest mb-6">Tipos de Evento</h3>
+                    <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={eventDistribution}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 'bold' }} />
+                                <Tooltip cursor={{ fill: '#f8fafc' }} />
+                                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* 5. KPIs & Methods */}
+                <div className="md:col-span-1 bg-white rounded-2xl md:rounded-[32px] p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
+                    <h3 className="text-sm font-black text-navy uppercase tracking-widest mb-6 flex items-center justify-between">
+                        Performance
+                        <span className="material-symbols-outlined text-gray-300">insights</span>
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Ticket Médio</p>
+                            <p className="text-xl font-black text-navy">R$ {financialStats.avgTicket.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Projetado</p>
+                            <p className="text-xl font-black text-blue-600">R$ {financialStats.revenueProjection.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="md:col-span-1 bg-white rounded-2xl md:rounded-[32px] p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                    <h3 className="text-sm font-black text-navy uppercase tracking-widest mb-6">Métodos de Pagamento</h3>
+                    <div className="h-[180px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie data={paymentMethods} innerRadius={50} outerRadius={70} paddingAngle={2} dataKey="value">
+                                    {paymentMethods.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }} />
+                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Accounts Receivable Panel */}
                 <div className="md:col-span-1 bg-white rounded-2xl md:rounded-[32px] p-5 md:p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col">
-                    <h3 className="text-base md:text-lg font-bold text-navy mb-4 md:mb-6 flex items-center justify-between">
+                    <h3 className="text-sm font-black text-navy uppercase tracking-widest flex items-center justify-between mb-4">
                         <span>Contas a Receber</span>
-                        <div className="size-7 md:size-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center">
+                        <div className="size-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
                             <span className="material-symbols-outlined text-sm">payments</span>
                         </div>
                     </h3>
-                    <div className="flex-1 overflow-y-auto pr-2 space-y-3 md:space-y-4 custom-scrollbar max-h-[350px] md:max-h-[400px]">
+                    <div className="flex-1 overflow-y-auto pr-1 space-y-3 custom-scrollbar max-h-[180px]">
                         {accountsReceivableList.length === 0 ? (
-                            <p className="text-gray-400 text-xs md:text-sm italic py-6 md:py-8 text-center">Tudo recebido!</p>
+                            <p className="text-gray-400 text-[10px] italic py-4 text-center">Tudo recebido!</p>
                         ) : accountsReceivableList.map((item, i) => (
-                            <div key={i} className="flex items-center gap-3 p-2.5 md:p-3 hover:bg-orange-50/50 rounded-xl md:rounded-2xl transition-all border border-transparent hover:border-orange-100 group">
+                            <div key={i} className="flex items-center gap-2 p-2 hover:bg-orange-50/50 rounded-xl transition-all border border-transparent hover:border-orange-100">
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs md:text-sm font-black text-navy truncate tracking-tight">{item.client}</p>
-                                    <p className="text-[9px] md:text-[10px] text-gray-500 font-bold uppercase tracking-tighter mt-0.5">#{item.id.split('-')[1] || item.id} • {item.deadline}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="text-xs md:text-sm font-black text-orange-600">
-                                        R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                    </p>
+                                    <p className="text-[11px] font-black text-navy truncate tracking-tight">{item.client}</p>
+                                    <p className="text-[9px] text-gray-400 font-bold">R$ {item.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                                 </div>
                             </div>
                         ))}

@@ -213,7 +213,7 @@ export default function Contracts() {
                             </div>
 
                             {/* Alert for Pending Signature */}
-                            {(!contract.lesseeSignature || !contract.attendantSignature) && (contract.status === 'Agendado' || contract.status === 'Ativo') && (
+                            {((!contract.lesseeSignature || !contract.attendantSignature) && !contract.isPhysicallySigned) && (contract.status === 'Agendado' || contract.status === 'Ativo') && (
                                 <div className="absolute top-0 right-12 px-3 py-1 bg-red-500 text-white text-[8px] font-black uppercase tracking-widest rounded-b-lg shadow-sm">
                                     Pendente Assinatura
                                 </div>

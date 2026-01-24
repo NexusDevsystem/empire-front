@@ -17,7 +17,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
     const [newItem, setNewItem] = useState<NewItemDraft>({
         status: 'Disponível',
         statusColor: 'primary',
-        type: 'Traje',
+        type: '',
         img: '',
         quantity: 1,
         price: 0
@@ -137,7 +137,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
             return;
         }
         onSave(newItem);
-        setNewItem({ status: 'Disponível', statusColor: 'primary', type: 'Traje', img: '', price: 0, color: '' });
+        setNewItem({ status: 'Disponível', statusColor: 'primary', type: '', img: '', price: 0, color: '' });
         onClose();
     };
 

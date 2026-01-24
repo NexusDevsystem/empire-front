@@ -171,6 +171,18 @@ export const settingsAPI = {
     }
 };
 
+// Logs API
+export const logsAPI = {
+    getAll: async (params: any) => {
+        const { data } = await api.get('/logs', { params });
+        return data; // returns { data: [], pagination: {} }
+    },
+    getUsers: async () => {
+        const { data } = await api.get('/logs/users');
+        return data;
+    }
+};
+
 // External APIs
 export const viaCepAPI = {
     getAddress: async (cep: string) => {

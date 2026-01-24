@@ -39,7 +39,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('18:00');
     const [eventDate, setEventDate] = useState('');
-    const [eventType, setEventType] = useState<import('../types').EventType>('Casamento');
+    const [eventType, setEventType] = useState<import('../types').EventType>('');
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
     const [saleItemIds, setSaleItemIds] = useState<string[]>([]);
     const [discount, setDiscount] = useState('0');
@@ -197,6 +197,12 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
 
         return Object.values(groups);
     }, [items, contracts, startDate, endDate, eventDate, contractType, searchTerm, catFilter]);
+
+    const eventTypes = useMemo(() => {
+        const defaultTypes = ['Casamento', 'Formatura', 'Debutante', 'Noivado', 'Corporativo', 'Outro'];
+        const existingTypes = contracts.map(c => c.eventType).filter(Boolean);
+        return Array.from(new Set([...defaultTypes, ...existingTypes]));
+    }, [contracts]);
 
     const filteredClients = useMemo(() => {
         if (!clientSearch) return clients.slice(0, 100); // Show recent or first 100 if empty
@@ -507,7 +513,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                 {contractType === 'Aluguel' && (
                                     <>
                                         <div className="space-y-2">
-                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Retirada</label>
+                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Retirada <span className="text-red-500">*</span></label>
                                             <div className="flex gap-4">
                                                 <div className="relative flex-1">
                                                     <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
@@ -520,7 +526,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                             </div>
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Devolução Prevista</label>
+                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Devolução Prevista <span className="text-red-500">*</span></label>
                                             <div className="flex gap-4">
                                                 <div className="relative flex-1">
                                                     <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
@@ -537,7 +543,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
 
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-black uppercase tracking-wider">
-                                        {contractType === 'Aluguel' ? 'Data do Evento' : 'Data da Entrega/Venda'}
+                                        {contractType === 'Aluguel' ? 'Data do Evento' : 'Data da Entrega/Venda'} <span className="text-red-500">*</span>
                                     </label>
                                     <div className="relative">
                                         <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
@@ -596,7 +602,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                             </div>
 
                             <div className="space-y-2 relative" ref={searchRef}>
-                                <label className="text-xs font-bold text-gray-500 uppercase">Cliente Responsável</label>
+                                <label className="text-xs font-bold text-gray-500 uppercase">Cliente Responsável <span className="text-red-500">*</span></label>
 
                                 {!isCreatingNewClient ? (
                                     <div className="relative">
@@ -708,7 +714,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">CPF</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">CPF <span className="text-red-500">*</span></label>
                                                     <input
                                                         value={newClientDetails.cpf}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, cpf: maskCPF(e.target.value) })}
@@ -735,7 +741,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div className="md:col-span-2">
-                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Email</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Email <span className="text-red-500">*</span></label>
                                                     <input
                                                         value={newClientDetails.email}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, email: e.target.value })}
@@ -748,7 +754,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                             {/* Simplified Address */}
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="col-span-2">
-                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Endereço</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Endereço <span className="text-red-500">*</span></label>
                                                     <input
                                                         value={newClientDetails.address}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, address: e.target.value })}
@@ -757,7 +763,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Bairro</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Bairro <span className="text-red-500">*</span></label>
                                                     <input
                                                         value={newClientDetails.neighborhood}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, neighborhood: e.target.value })}
@@ -765,7 +771,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Cidade</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Cidade <span className="text-red-500">*</span></label>
                                                     <input
                                                         value={newClientDetails.city}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, city: e.target.value })}
@@ -773,7 +779,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     />
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Estado</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">Estado <span className="text-red-500">*</span></label>
                                                     <select
                                                         value={newClientDetails.state}
                                                         onChange={e => setNewClientDetails({ ...newClientDetails, state: e.target.value })}
@@ -786,7 +792,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     </select>
                                                 </div>
                                                 <div className="col-span-1">
-                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">CEP</label>
+                                                    <label className="block text-[10px] font-bold text-black uppercase mb-1">CEP <span className="text-red-500">*</span></label>
                                                     <input
                                                         value={newClientDetails.zip}
                                                         onChange={e => handleCEPChange(e.target.value)}
@@ -830,18 +836,22 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-black uppercase">Tipo de Evento</label>
-                                <div className="relative">
-                                    <select value={eventType} onChange={e => setEventType(e.target.value as any)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm appearance-none cursor-pointer">
-                                        <option value="Casamento">Casamento</option>
-                                        <option value="Formatura">Formatura</option>
-                                        <option value="Debutante">Debutante</option>
-                                        <option value="Noivado">Noivado</option>
-                                        <option value="Corporativo">Corporativo</option>
-                                        <option value="Outro">Outro</option>
-                                    </select>
-                                    <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">celebration</span>
-                                    <span className="material-symbols-outlined absolute right-4 top-3 text-gray-400 pointer-events-none">expand_more</span>
+                                <label className="text-xs font-bold text-black uppercase">Tipo de Evento <span className="text-red-500">*</span></label>
+                                <div className="relative group">
+                                    <input
+                                        list="event-types"
+                                        value={eventType}
+                                        onChange={e => setEventType(e.target.value as import('../types').EventType)}
+                                        className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 focus:ring-4 focus:ring-primary/5 focus:border-primary outline-none bg-white font-bold text-navy shadow-sm transition-all"
+                                        placeholder="Selecione ou digite um novo tipo..."
+                                    />
+                                    <datalist id="event-types">
+                                        {eventTypes.map(type => (
+                                            <option key={type} value={type} />
+                                        ))}
+                                    </datalist>
+                                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">celebration</span>
+                                    <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none text-xl group-hover:text-primary transition-colors">arrow_drop_down</span>
                                 </div>
                             </div>
 

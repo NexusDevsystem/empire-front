@@ -334,7 +334,9 @@ export default function Clients() {
                                                 </div>
                                                 <div>
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase">Nascimento</p>
-                                                    <p className="text-sm font-bold text-navy">{selectedClient.birthDate?.split('-').reverse().join('/') || '-'}</p>
+                                                    <p className="text-sm font-bold text-navy">
+                                                        {selectedClient.birthDate ? new Date(selectedClient.birthDate).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '-'}
+                                                    </p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-3">
@@ -385,43 +387,57 @@ export default function Clients() {
                                         <span className="material-symbols-outlined text-lg">history_edu</span> Histórico de Locações
                                     </h3>
 
-                                    <div className="relative border-l-2 border-gray-100 ml-3 space-y-8 pl-8">
+                                    <div className="relative border-l border-gray-100 ml-3 space-y-4 pl-6 py-2">
                                         {contracts?.filter(c => c.clientId === selectedClient.id).length === 0 ? (
                                             <p className="text-gray-400 text-sm italic">Nenhuma locação registrada.</p>
                                         ) : (
                                             contracts?.filter(c => c.clientId === selectedClient.id)
                                                 .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
-                                                .map((contract) => (
-                                                    <div key={contract.id} className="relative group">
-                                                        {/* Timeline Dot */}
-                                                        <div className={`absolute -left-[41px] top-1 size-5 rounded-full border-4 border-white shadow-sm ${contract.status === 'Ativo' ? 'bg-green-500' :
-                                                            contract.status === 'Agendado' ? 'bg-amber-400' :
-                                                                contract.status === 'Finalizado' ? 'bg-gray-400' : 'bg-red-400'
-                                                            }`}></div>
+                                                .map((contract) => {
+                                                    const isPickup = contract.status === 'Ativo' || contract.status === 'Agendado'; // Simplifying logic for visual match
+                                                    // Actually, user wants it to look like the 'RETIRADA' card.
+                                                    // In Agenda, RETIRADA is green (emerald). DEVOLUÇÃO is orange.
+                                                    // Let's rely on status. If Active/Scheduled -> Green (Retirada logic). If Finalized -> Orange (Devolução logic matching Agenda return).
+                                                    // But wait, history shows the CONTRACT. A contract has both pickup and return.
+                                                    // The user's image shows "RETIRADA 09:00 - João...". This is a specific event.
+                                                    // For the history list, we are listing CONTRACTS.
+                                                    // I will style it as a "RETIRADA" card if it's active/scheduled, ensuring the green look.
 
-                                                        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm group-hover:shadow-md transition-shadow">
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <div>
-                                                                    <p className="text-xs font-bold text-gray-400 uppercase">{new Date(contract.startDate).toLocaleDateString('pt-BR')} - {new Date(contract.endDate).toLocaleDateString('pt-BR')}</p>
-                                                                    <h4 className="font-bold text-navy mt-1">Locação #{contract.id.slice(0, 6)}</h4>
+                                                    const isGreen = contract.status === 'Ativo' || contract.status === 'Agendado';
+                                                    const colorClass = isGreen
+                                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                        : 'bg-orange-100 text-orange-700 border-orange-200'; // Defaulting others to orange-ish for contrast or maybe gray?
+                                                    // If finalized, maybe gray or orange? Agenda uses orange for Return. Let's use Gray for finalized to be neutral or Orange if we consider it "Returned".
+                                                    // Actually, let's stick to the requested Green style for the active/main ones.
+
+                                                    // PRECISE MATCH TO IMAGE 2:
+                                                    // bg-emerald-100, text-emerald-700, border-emerald-200 (if active/scheduled)
+                                                    // rounded-md, p-1.5, flex gap-1...
+
+                                                    return (
+                                                        <div key={contract.id} className="relative">
+                                                            {/* Timeline Dot */}
+                                                            <div className={`absolute -left-[31px] top-3 size-2.5 rounded-full border-2 border-white shadow-sm ring-1 ring-gray-100 ${contract.status === 'Ativo' ? 'bg-green-500' :
+                                                                contract.status === 'Agendado' ? 'bg-amber-400' :
+                                                                    contract.status === 'Finalizado' ? 'bg-gray-400' : 'bg-red-400'
+                                                                }`}></div>
+
+                                                            <div className={`h-auto min-h-[40px] flex items-center gap-2 ${contract.status === 'Ativo' || contract.status === 'Agendado' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-gray-50 text-gray-600 border-gray-200'} px-2 py-1.5 rounded-lg border font-bold leading-tight cursor-pointer hover:brightness-95 transition-all shadow-sm`}>
+                                                                <span className="material-symbols-outlined text-lg shrink-0">
+                                                                    {contract.status === 'Ativo' || contract.status === 'Agendado' ? 'output' : 'input'}
+                                                                </span>
+                                                                <div className="flex flex-col min-w-0">
+                                                                    <span className="leading-none text-[10px] uppercase mb-0.5">
+                                                                        {contract.contractType === 'Venda' ? 'VENDA' : (contract.status === 'Ativo' || contract.status === 'Agendado' ? 'RETIRADA' : 'FINALIZADO')}
+                                                                    </span>
+                                                                    <span className="truncate font-medium opacity-90 text-xs">
+                                                                        {new Date(contract.startDate).toLocaleDateString('pt-BR')} - Locação #{contract.id.split('-')[2]}
+                                                                    </span>
                                                                 </div>
-                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${contract.status === 'Ativo' ? 'bg-green-100 text-green-700' :
-                                                                    contract.status === 'Agendado' ? 'bg-amber-100 text-amber-700' :
-                                                                        'bg-gray-100 text-gray-600'
-                                                                    }`}>{contract.status}</span>
                                                             </div>
-                                                            <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-2 mb-2">
-                                                                {contract.items.map((item, idx) => (
-                                                                    <div key={idx} className="flex items-center gap-2">
-                                                                        <span className="size-1.5 rounded-full bg-gray-300"></span>
-                                                                        {item}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            <p className="text-sm font-bold text-navy text-right">R$ {contract.totalValue.toLocaleString('pt-BR')}</p>
                                                         </div>
-                                                    </div>
-                                                ))
+                                                    );
+                                                })
                                         )}
                                     </div>
                                 </section>
@@ -458,22 +474,13 @@ export default function Clients() {
                                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">RG</label>
                                         <input
                                             value={newClient.rg || ''}
-                                            onChange={e => setNewClient({ ...newClient, rg: formatRG(e.target.value) })}
+                                            onChange={e => setNewClient({ ...newClient, rg: e.target.value })}
                                             className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none transition-all font-mono text-sm"
-                                            placeholder="00.000.000-0"
-                                            maxLength={12}
+                                            placeholder="RG"
+                                            maxLength={20}
                                         />
                                     </div>
 
-                                    <div className="col-span-1 md:col-span-2">
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço (Rua, Av, etc)</label>
-                                        <input value={newClient.address || ''} onChange={e => setNewClient({ ...newClient, address: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Rua das Flores, 123" />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bairro</label>
-                                        <input value={newClient.neighborhood || ''} onChange={e => setNewClient({ ...newClient, neighborhood: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" />
-                                    </div>
                                     <div>
                                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">CEP</label>
                                         <input
@@ -483,6 +490,15 @@ export default function Clients() {
                                             placeholder="00000-000"
                                             maxLength={9}
                                         />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Bairro</label>
+                                        <input value={newClient.neighborhood || ''} onChange={e => setNewClient({ ...newClient, neighborhood: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" />
+                                    </div>
+
+                                    <div className="col-span-1 md:col-span-2">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Endereço (Rua, Av, etc)</label>
+                                        <input value={newClient.address || ''} onChange={e => setNewClient({ ...newClient, address: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none" placeholder="Rua das Flores, 123" />
                                     </div>
 
                                     <div>

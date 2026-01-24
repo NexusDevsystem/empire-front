@@ -120,23 +120,21 @@ export default function Inventory() {
                     const groupKey = `${product.name}|${product.type}|${product.size}|${product.color || ''}`;
 
                     // Usar campos de quantidade se disponíveis, senão usar contagem de itens (compatibilidade)
-                    const totalQty = product.totalQuantity !== undefined
-                        ? product.totalQuantity
-                        : group.length;
+                    const totalQty = group.reduce((sum, item) => sum + (item.totalQuantity || 1), 0);
 
-                    // Calcular quantidade disponível
-                    let availableQty: number;
+                    // Calcular quantidade disponível e alugada
+                    let availableQty = 0;
+                    let rentedQty = 0;
 
                     const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 
-                    // Dynamic Robust Availability Calculation
-                    availableQty = group.reduce((sum, item) => {
+                    group.forEach(item => {
                         // 1. Identify if the item has a "blocking" physical status (Laundry, Atelier, etc.)
                         const operationalStatuses = ['Disponível', 'Alugado', 'Reservado', 'Devolução'];
                         const isPhysicallyBlocked = !operationalStatuses.includes(item.status);
 
                         // 2. Count how many units of THIS item ID are in contracts for today
-                        const rentedUnits = contracts.reduce((count, c) => {
+                        const bookedUnits = contracts.reduce((count, c) => {
                             if (c.status === 'Cancelado' || c.status === 'Finalizado') return count;
 
                             const start = c.startDate.split('T')[0];
@@ -149,14 +147,15 @@ export default function Inventory() {
                             return count + c.items.filter(id => id === item.id).length;
                         }, 0);
 
+                        rentedQty += bookedUnits;
+
                         // 3. Universal Logic: Physical Status blocks 1 unit, Contracts block N units.
-                        // We subtract 1 if the group is marked as "In Laundry" etc.
                         const total = item.totalQuantity || 1;
                         const maintenanceUnits = isPhysicallyBlocked ? 1 : 0;
 
-                        const available = Math.max(0, total - rentedUnits - maintenanceUnits);
-                        return sum + available;
-                    }, 0);
+                        const available = Math.max(0, total - bookedUnits - maintenanceUnits);
+                        availableQty += available;
+                    });
 
                     return (
                         <div
@@ -197,6 +196,9 @@ export default function Inventory() {
                                         <div className="size-8 rounded-lg bg-white/10 border border-white/10 text-white text-xs font-bold flex items-center justify-center">
                                             {product.size}
                                         </div>
+                                        <div className="text-white/40 text-[10px] font-bold uppercase tracking-widest">
+                                            Total: {totalQty}
+                                        </div>
                                     </div>
                                     <h3 className="text-2xl font-black text-white leading-tight tracking-tight line-clamp-2">{product.name}</h3>
                                 </div>
@@ -211,14 +213,15 @@ export default function Inventory() {
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-1 border-l border-white/10 pl-4">
-                                        <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Acervo Total</span>
+                                        <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Alugados</span>
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-xl font-black text-white/60">{totalQty}</span>
+                                            <span className="text-xl font-black text-white/90">{rentedQty}</span>
                                             <span className="text-xs font-medium text-gray-600">unid.</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+
 
                             {/* Hover Action */}
                             <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-300 pointer-events-none" />
