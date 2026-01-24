@@ -153,13 +153,14 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                 {/* Document Title & Date */}
                 <div className="flex justify-between items-center mb-3 pb-1 border-b-2 border-navy">
                     <h2 className="text-xl font-serif italic text-navy">
-                        Contrato de Locação #{contract.number || contract.id.split('-').pop()?.toUpperCase()}
+                        Contrato de {contract.contractType || 'Locação'} #{contract.number || contract.id.split('-').pop()?.toUpperCase()}
                     </h2>
                     <div className="text-right">
                         <p className="text-[10px] font-sans font-black uppercase tracking-[0.2em] text-black">Data: {new Date().toLocaleDateString('pt-BR')}</p>
                         {contract.eventDate && (
                             <p className="text-[11px] font-sans font-black uppercase tracking-[0.1em] text-navy mt-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100 italic">
-                                Data do Evento: {new Date(contract.eventDate).toLocaleDateString('pt-BR')}
+                                {contract.contractType === 'Venda' ? 'Data da Entrega: ' : 'Data do Evento: '}
+                                {new Date(contract.eventDate).toLocaleDateString('pt-BR')}
                             </p>
                         )}
                     </div>
@@ -335,14 +336,22 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                         <section>
                             <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1.5 border-b border-gray-100 pb-0.5">II. Objeto e Período</h3>
                             <div className="grid grid-cols-6 gap-2 text-[11px]">
-                                <div className="col-span-1 md:col-span-2">
-                                    <span className="text-[8px] font-black text-black uppercase block">Retirada</span>
-                                    <p className="font-bold border-b border-gray-50 h-4">{new Date(contract.startDate).toLocaleDateString('pt-BR')} às {contract.startTime || '09:00'}</p>
-                                </div>
-                                <div className="col-span-1 md:col-span-2">
-                                    <span className="text-[8px] font-black text-black uppercase block">Devolução</span>
-                                    <p className="font-bold border-b border-gray-50 h-4">{new Date(contract.endDate).toLocaleDateString('pt-BR')} às {contract.endTime || '18:00'}</p>
-                                </div>
+                                {contract.contractType === 'Venda' ? (
+                                    <div className="col-span-6">
+                                        <p className="font-bold border-b border-gray-50 h-4">VENDA DEFINITIVA DE TRAJES E/OU ACESSÓRIOS</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="col-span-1 md:col-span-2">
+                                            <span className="text-[8px] font-black text-black uppercase block">Retirada</span>
+                                            <p className="font-bold border-b border-gray-50 h-4">{new Date(contract.startDate).toLocaleDateString('pt-BR')} às {contract.startTime || '09:00'}</p>
+                                        </div>
+                                        <div className="col-span-1 md:col-span-2">
+                                            <span className="text-[8px] font-black text-black uppercase block">Devolução</span>
+                                            <p className="font-bold border-b border-gray-50 h-4">{new Date(contract.endDate).toLocaleDateString('pt-BR')} às {contract.endTime || '18:00'}</p>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="col-span-1 md:col-span-2">
                                     <span className="text-[8px] font-black text-black uppercase block">Natureza</span>
                                     <p className="font-bold border-b border-gray-50 uppercase h-4">{contract.eventType || '-'}</p>
@@ -370,12 +379,14 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                                         </div>
                                         <span className="text-[9px] font-bold uppercase tracking-wider">Convidado</span>
                                     </div>
-                                    <div className="flex items-center gap-2 ml-4">
-                                        <div className={`size-3 rounded border border-navy flex items-center justify-center ${contract.isFirstRental ? 'bg-navy' : ''}`}>
-                                            {contract.isFirstRental && <span className="text-white text-[8px] font-black">X</span>}
+                                    {contract.contractType === 'Aluguel' && (
+                                        <div className="flex items-center gap-2 ml-4">
+                                            <div className={`size-3 rounded border border-navy flex items-center justify-center ${contract.isFirstRental ? 'bg-navy' : ''}`}>
+                                                {contract.isFirstRental && <span className="text-white text-[8px] font-black">X</span>}
+                                            </div>
+                                            <span className="text-[9px] font-bold uppercase tracking-wider">Confecção 1º Aluguel</span>
                                         </div>
-                                        <span className="text-[9px] font-bold uppercase tracking-wider">Confecção 1º Aluguel</span>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         </section>
@@ -433,7 +444,11 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                                 <tr key={i}>
                                     <td className="py-1 font-bold text-navy uppercase">{item.name}</td>
                                     <td className="py-1 font-bold text-navy text-center text-sm">{item.size}</td>
-                                    <td className="py-1 text-right font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price || 0)}</td>
+                                    <td className="py-1 text-right font-black">
+                                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                            (contract.saleItems?.includes(item.id) ? (item.salePrice || item.price) : item.price) || 0
+                                        )}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -459,7 +474,9 @@ export default function PrintableContract({ contract, client, items, onClose }: 
 
                                         {/* Saldo Pendente */}
                                         <div className="flex items-baseline gap-2">
-                                            <span className="text-[9px] font-black uppercase tracking-tighter text-red-600">Saldo na Retirada:</span>
+                                            <span className="text-[9px] font-black uppercase tracking-tighter text-red-600">
+                                                {contract.contractType === 'Venda' ? 'Saldo Pendente:' : 'Saldo na Retirada:'}
+                                            </span>
                                             <span className="text-xl font-black text-red-600">
                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.balance ?? (contract.totalValue - (contract.paidAmount || 0)))}
                                             </span>
@@ -472,12 +489,21 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                 </section>
 
                 {/* Delivery & Return Policy */}
-                <section className="mb-2 border-t border-gray-100 pt-0.5">
-                    <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-0 px-1 italic">V. Entrega e Devolução</h3>
-                    <p className="text-[7.5px] leading-tight text-black text-justify font-sans px-1">
-                        O traje será entregue lavado, passado, ajustado e embalado em capa e na cruzeta. Proibido fazer ajustes. Proibido usar ferro elétrico. Proibido lavar. Deve ser devolvido sem danos. Perda, extravio ou dano do objeto será cobrado o valor equivalente ao mesmo. Atrasos na devolução será cobrado multa por dia de atraso. Caso ocorra alguma eventualidade quanto ao prazo de retirada ou devolução do traje, é obrigação informar antecipação. Antecipação de Retirada será cobrado taxa.
-                    </p>
-                </section>
+                {contract.contractType === 'Aluguel' ? (
+                    <section className="mb-2 border-t border-gray-100 pt-0.5">
+                        <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-0 px-1 italic">V. Entrega e Devolução</h3>
+                        <p className="text-[7.5px] leading-tight text-black text-justify font-sans px-1">
+                            O traje será entregue lavado, passado, ajustado e embalado em capa e na cruzeta. Proibido fazer ajustes. Proibido usar ferro elétrico. Proibido lavar. Deve ser devolvido sem danos. Perda, extravio ou dano do objeto será cobrado o valor equivalente ao mesmo. Atrasos na devolução será cobrado multa por dia de atraso. Caso ocorra alguma eventualidade quanto ao prazo de retirada ou devolução do traje, é obrigação informar antecipação. Antecipação de Retirada será cobrado taxa.
+                        </p>
+                    </section>
+                ) : (
+                    <section className="mb-2 border-t border-gray-100 pt-0.5">
+                        <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-0 px-1 italic">V. Entrega da Venda</h3>
+                        <p className="text-[7.5px] leading-tight text-black text-justify font-sans px-1">
+                            A mercadoria acima descrita é vendida em caráter definitivo. Após a entrega e conferência pelo comprador, a Empire Trajes Finos não se responsabiliza por danos causados por uso inadequado, lavagem incorreta ou armazenamento impróprio pelo cliente. Não aceitamos devoluções de peças de venda após a saída do estabelecimento.
+                        </p>
+                    </section>
+                )}
 
                 {/* Observations (NEW) */}
                 {contract.observations && (
@@ -510,9 +536,9 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                                 <img src={contract.attendantSignature} alt="Assinatura Locador" className="h-full w-auto object-contain" />
                             )}
                         </div>
-                        <div className="border-t border-navy w-full mb-1"></div>
+                        <p className="border-t border-navy w-full mb-1"></p>
                         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-navy">Empire Trajes Finos</p>
-                        <p className="text-[8px] font-bold text-black uppercase tracking-widest">Contratada / Locador</p>
+                        <p className="text-[8px] font-bold text-black uppercase tracking-widest">{contract.contractType === 'Venda' ? 'Vendedor' : 'Contratada / Locador'}</p>
                     </div>
 
                     <div className="text-center">
@@ -523,7 +549,7 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                         </div>
                         <div className="border-t border-navy w-full mb-1"></div>
                         <p className="text-[10px] font-black uppercase tracking-tighter text-navy">{client.name}</p>
-                        <p className="text-[8px] font-bold text-black uppercase tracking-widest">Contratante / Locatário</p>
+                        <p className="text-[8px] font-bold text-black uppercase tracking-widest">{contract.contractType === 'Venda' ? 'Comprador' : 'Contratante / Locatário'}</p>
                     </div>
                 </div>
 

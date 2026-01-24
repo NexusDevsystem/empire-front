@@ -18,7 +18,7 @@ export default function Logistics() {
     // Contracts starting TODAY that are 'Ativo' or 'Agendado'
     const todayPickups = useMemo(() => {
         return contracts.filter(c =>
-            c.startDate.split('T')[0] === today &&
+            (c.contractType === 'Venda' ? c.eventDate.split('T')[0] === today : c.startDate.split('T')[0] === today) &&
             (c.status === 'Agendado' || c.status === 'Ativo')
         ).flatMap(c => {
             return c.items.map(itemId => {
@@ -34,6 +34,7 @@ export default function Logistics() {
     // Contracts ending TODAY or BEFORE (Late) that are 'Ativo'
     const todayReturns = useMemo(() => {
         return contracts.filter(c =>
+            c.contractType !== 'Venda' &&
             c.endDate.split('T')[0] <= today && // Catches overdue returns too
             c.status === 'Ativo'
         ).flatMap(c => {

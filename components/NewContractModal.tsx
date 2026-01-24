@@ -25,6 +25,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     const [step, setStep] = useState(1);
     const [showReminder, setShowReminder] = useState(false);
     const [pendingContract, setPendingContract] = useState<Contract | null>(null);
+    const [contractType, setContractType] = useState<'Aluguel' | 'Venda'>('Aluguel');
 
     // Client Selection State
     const [clientSearch, setClientSearch] = useState('');
@@ -148,7 +149,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     // Logic
     // Product Grouping Logic
     const productGroups = useMemo(() => {
-        if (!startDate || !endDate) return [];
+        if (contractType === 'Aluguel' && (!startDate || !endDate)) return [];
         const groups: Record<string, {
             key: string, name: string, size: string, img: string, price: number, type: string,
             allItems: import('../types').Item[],
@@ -272,8 +273,15 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
     const handleNext = async () => {
         if (step === 1) {
             // Common Validation for Step 1
-            if (!startDate || !endDate || !eventDate) {
+            if (contractType === 'Aluguel' && (!startDate || !endDate || !eventDate)) {
                 showToast('error', 'Selecione as datas de início, fim e do evento.');
+                return;
+            }
+
+            if (contractType === 'Venda' && !eventDate) {
+                // For sales, we might only need eventDate or just today? 
+                // Let's assume eventDate is still useful for reference.
+                showToast('error', 'Selecione a data do evento/entreperna.');
                 return;
             }
 
@@ -333,7 +341,11 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
         if (delta > 0) {
             if (selectedFromGroup < group.availableQty) {
                 // For simplicity, we add the first available item in the group
-                setSelectedItemIds(prev => [...prev, group.allItems[0].id]);
+                const newItemId = group.allItems[0].id;
+                setSelectedItemIds(prev => [...prev, newItemId]);
+                if (contractType === 'Venda') {
+                    setSaleItemIds(prev => [...prev, newItemId]);
+                }
             } else {
                 showToast('error', 'Quantidade máxima disponível atingida para este período.');
             }
@@ -350,7 +362,31 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
             if (indexToRemove !== -1) {
                 setSelectedItemIds(prev => {
                     const next = [...prev];
+                    const removedId = next[indexToRemove];
                     next.splice(indexToRemove, 1);
+                    // Also remove from sale items if it was there
+                    setSaleItemIds(prevSales => prevSales.filter((id, i) => {
+                        // This is tricky because we don't have indexes in saleItemIds
+                        // but since they are the same IDs, we just remove one instance
+                        return true; // Simplified for now, the UI toggle is primary
+                    }).filter((id, i, arr) => {
+                        // Better logic: if we remove an item from selected, 
+                        // and it was a sale item, remove ONE instance of it from saleItemIds
+                        return true;
+                    }));
+
+                    // Improved saleItemIds correction
+                    const removedItemId = removedId;
+                    setSaleItemIds(currentSales => {
+                        const idx = currentSales.indexOf(removedItemId);
+                        if (idx > -1) {
+                            const updated = [...currentSales];
+                            updated.splice(idx, 1);
+                            return updated;
+                        }
+                        return currentSales;
+                    });
+
                     return next;
                 });
             }
@@ -362,6 +398,7 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
         const random = Math.floor(1000 + Math.random() * 9000);
         const contract: Contract = {
             id: `CN-${timestamp}-${random}`,
+            contractType,
             clientId,
             clientName: selectedClient?.name || newClientDetails.name,
             items: selectedItemIds.filter(id => !saleItemIds.includes(id)),
@@ -448,38 +485,63 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                     {/* Step 1: Info */}
                     {step === 1 && (
                         <div className="max-w-xl mx-auto space-y-6 animate-in slide-in-from-right-8 duration-300">
+                            {/* Contract Type Toggle */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => setContractType('Aluguel')}
+                                    className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${contractType === 'Aluguel' ? 'bg-primary/5 border-primary ring-4 ring-primary/10' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                                >
+                                    <span className={`material-symbols-outlined text-2xl ${contractType === 'Aluguel' ? 'text-primary' : 'text-gray-400'}`}>calendar_month</span>
+                                    <span className={`text-xs font-black uppercase tracking-widest ${contractType === 'Aluguel' ? 'text-primary' : 'text-gray-400'}`}>Aluguel</span>
+                                </button>
+                                <button
+                                    onClick={() => setContractType('Venda')}
+                                    className={`py-4 rounded-2xl border-2 flex flex-col items-center gap-2 transition-all ${contractType === 'Venda' ? 'bg-primary/5 border-primary ring-4 ring-primary/10' : 'bg-white border-gray-100 hover:border-gray-200'}`}
+                                >
+                                    <span className={`material-symbols-outlined text-2xl ${contractType === 'Venda' ? 'text-primary' : 'text-gray-400'}`}>shopping_bag</span>
+                                    <span className={`text-xs font-black uppercase tracking-widest ${contractType === 'Venda' ? 'text-primary' : 'text-gray-400'}`}>Venda</span>
+                                </button>
+                            </div>
+
                             <div className="flex flex-col gap-6">
+                                {contractType === 'Aluguel' && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Retirada</label>
+                                            <div className="flex gap-4">
+                                                <div className="relative flex-1">
+                                                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
+                                                    <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">calendar_today</span>
+                                                </div>
+                                                <div className="relative w-40">
+                                                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
+                                                    <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">schedule</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-bold text-black uppercase tracking-wider">Devolução Prevista</label>
+                                            <div className="flex gap-4">
+                                                <div className="relative flex-1">
+                                                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
+                                                    <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">event</span>
+                                                </div>
+                                                <div className="relative w-40">
+                                                    <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
+                                                    <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">update</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Retirada</label>
-                                    <div className="flex gap-4">
-                                        <div className="relative flex-1">
-                                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
-                                            <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">calendar_today</span>
-                                        </div>
-                                        <div className="relative w-40">
-                                            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
-                                            <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">schedule</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Devolução Prevista</label>
-                                    <div className="flex gap-4">
-                                        <div className="relative flex-1">
-                                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
-                                            <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">event</span>
-                                        </div>
-                                        <div className="relative w-40">
-                                            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
-                                            <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">update</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Data do Evento</label>
+                                    <label className="text-xs font-bold text-black uppercase tracking-wider">
+                                        {contractType === 'Aluguel' ? 'Data do Evento' : 'Data da Entrega/Venda'}
+                                    </label>
                                     <div className="relative">
                                         <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-primary/20 outline-none bg-white font-medium text-navy shadow-sm transition-all" />
-                                        <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">celebration</span>
+                                        <span className="material-symbols-outlined absolute left-3 top-3 text-gray-400">{contractType === 'Aluguel' ? 'celebration' : 'local_shipping'}</span>
                                     </div>
                                 </div>
 
@@ -945,7 +1007,9 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                                     </div>
                                                     <div className="text-right">
                                                         <p className="text-xs font-black text-primary">
-                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(group.price || 0)}
+                                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                                                (contractType === 'Venda' ? (group.allItems[0].salePrice || group.price) : group.price) || 0
+                                                            )}
                                                         </p>
                                                     </div>
                                                 </div>

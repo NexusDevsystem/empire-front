@@ -238,26 +238,39 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                         </section>
                     )}
 
-                    {/* Rental Details */}
+                    {/* Contract Dates / Sale Details */}
                     <section>
                         <h3 className="text-xs font-bold text-black uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-sm">event</span>
-                            Detalhes da Locação
+                            <span className="material-symbols-outlined text-sm">{contract.contractType === 'Venda' ? 'shopping_bag' : 'event'}</span>
+                            {contract.contractType === 'Venda' ? 'Detalhes da Venda' : 'Detalhes da Locação'}
                         </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <p className="text-xs text-gray-500 mb-1">Retirada</p>
-                                <p className="text-lg font-bold text-navy">{new Date(contract.startDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                        {contract.contractType === 'Venda' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
+                                    <p className="text-xs text-primary/70 mb-1 font-bold italic uppercase tracking-tighter">Data da Venda/Entrega</p>
+                                    <p className="text-lg font-bold text-primary">{contract.eventDate ? new Date(contract.eventDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'}</p>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-gray-400">check_circle</span>
+                                    <p className="text-xs font-bold text-navy uppercase tracking-widest">Venda Definitiva</p>
+                                </div>
                             </div>
-                            <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
-                                <p className="text-xs text-primary/70 mb-1 font-bold">Data do Evento</p>
-                                <p className="text-lg font-bold text-primary">{contract.eventDate ? new Date(contract.eventDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'}</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <p className="text-xs text-gray-500 mb-1">Retirada</p>
+                                    <p className="text-lg font-bold text-navy">{new Date(contract.startDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                </div>
+                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/20">
+                                    <p className="text-xs text-primary/70 mb-1 font-bold">Data do Evento</p>
+                                    <p className="text-lg font-bold text-primary">{contract.eventDate ? new Date(contract.eventDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não informada'}</p>
+                                </div>
+                                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                    <p className="text-xs text-gray-500 mb-1">Devolução</p>
+                                    <p className="text-lg font-bold text-navy">{new Date(contract.endDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
+                                </div>
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                <p className="text-xs text-gray-500 mb-1">Devolução</p>
-                                <p className="text-lg font-bold text-navy">{new Date(contract.endDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR')}</p>
-                            </div>
-                        </div>
+                        )}
                     </section>
 
                     {/* Technical Details (Fitting, Measurements & Observations) */}
@@ -345,7 +358,11 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-bold text-navy text-sm">R$ {item.price}</p>
+                                        <p className="font-bold text-navy text-sm">
+                                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                                                (contract.saleItems?.includes(item.id) ? (item.salePrice || item.price) : item.price) || 0
+                                            )}
+                                        </p>
                                     </div>
                                 </div>
                             ))}

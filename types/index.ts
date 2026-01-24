@@ -72,6 +72,7 @@ export type EventType = 'Casamento' | 'Formatura' | 'Debutante' | 'Corporativo' 
 
 export interface Contract {
     id: string; // e.g. #CN-2023-849
+    contractType: 'Aluguel' | 'Venda';
     clientId: string;
     clientName?: string;
     items: string[]; // List of Rental Item IDs
