@@ -394,39 +394,41 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                 )}
 
                 {/* Technical / Fitting Info Section */}
-                <section className="mb-3 font-sans">
-                    <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-navy/10 pb-0.5 italic">III. Detalhes de Prova e Medidas</h3>
-                    <div className="grid grid-cols-2 gap-8">
-                        {/* Fitting Date */}
-                        <div className="bg-gray-50/50 p-2 rounded border border-gray-100 flex justify-between items-center">
-                            <div>
-                                <span className="text-[8px] font-black text-black uppercase block">Data e Hora da Prova</span>
-                                <p className="text-[12px] font-black text-navy uppercase tracking-tight">
-                                    {contract.fittingDate ? new Date(contract.fittingDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : '____/____/____'}
-                                    {contract.fittingTime ? ` às ${contract.fittingTime}` : ' às ____:____'}
-                                </p>
-                            </div>
-                            <span className="material-symbols-outlined text-navy/20 text-xl">schedule</span>
-                        </div>
-
-                        {/* Measurements Table (Compact) */}
-                        <div className="grid grid-cols-3 gap-2">
-                            {[
-                                { label: 'Altura', key: 'height' },
-                                { label: 'Peso', key: 'weight' },
-                                { label: 'Tórax', key: 'chest' },
-                                { label: 'Cintura', key: 'waist' },
-                                { label: 'Dorso', key: 'neck' },
-                                { label: 'Manga', key: 'sleeve' }
-                            ].map((m) => (
-                                <div key={m.key} className="border-b border-gray-100 flex flex-col">
-                                    <span className="text-[7px] font-black text-gray-400 uppercase leading-none">{m.label}</span>
-                                    <span className="text-[10px] font-black text-navy h-3">{contract.measurements?.[m.key] || '____'}</span>
+                {contract.contractType !== 'Venda' && (
+                    <section className="mb-3 font-sans">
+                        <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-1 border-b border-navy/10 pb-0.5 italic">III. Detalhes de Prova e Medidas</h3>
+                        <div className="grid grid-cols-2 gap-8">
+                            {/* Fitting Date */}
+                            <div className="bg-gray-50/50 p-2 rounded border border-gray-100 flex justify-between items-center">
+                                <div>
+                                    <span className="text-[8px] font-black text-black uppercase block">Data e Hora da Prova</span>
+                                    <p className="text-[12px] font-black text-navy uppercase tracking-tight">
+                                        {contract.fittingDate ? new Date(contract.fittingDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : '____/____/____'}
+                                        {contract.fittingTime ? ` às ${contract.fittingTime}` : ' às ____:____'}
+                                    </p>
                                 </div>
-                            ))}
+                                <span className="material-symbols-outlined text-navy/20 text-xl">schedule</span>
+                            </div>
+
+                            {/* Measurements Table (Compact) */}
+                            <div className="grid grid-cols-3 gap-2">
+                                {[
+                                    { label: 'Altura', key: 'height' },
+                                    { label: 'Peso', key: 'weight' },
+                                    { label: 'Tórax', key: 'chest' },
+                                    { label: 'Cintura', key: 'waist' },
+                                    { label: 'Dorso', key: 'neck' },
+                                    { label: 'Manga', key: 'sleeve' }
+                                ].map((m) => (
+                                    <div key={m.key} className="border-b border-gray-100 flex flex-col">
+                                        <span className="text-[7px] font-black text-gray-400 uppercase leading-none">{m.label}</span>
+                                        <span className="text-[10px] font-black text-navy h-3">{contract.measurements?.[m.key] || '____'}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                </section>
+                    </section>
+                )}
 
                 {/* Items Table - Minimalist Table */}
                 <section className="mb-3">
@@ -458,14 +460,14 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                                     <div className="flex flex-row justify-between items-center gap-6 font-sans">
                                         {/* Total Geral */}
                                         <div className="flex items-baseline gap-2">
-                                            <span className="text-[9px] font-black uppercase tracking-widest text-black">Total Geral:</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-black">Total {contract.contractType === 'Venda' ? 'da Venda' : 'do Contrato'}:</span>
                                             <span className="text-lg font-black text-navy">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.totalValue)}</span>
                                         </div>
 
-                                        {/* Adiantamento */}
+                                        {/* Adiantamento / Pago */}
                                         <div className="flex items-baseline gap-2 opacity-60">
                                             <span className="text-[8px] font-bold uppercase tracking-widest text-black">
-                                                Reserva ({contract.paymentMethod || 'PIX'}):
+                                                {contract.contractType === 'Venda' ? 'Valor Pago:' : `Reserva (${contract.paymentMethod || 'PIX'}):`}
                                             </span>
                                             <span className="text-[12px] font-black italic">
                                                 -{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(contract.paidAmount || 0)}
@@ -517,14 +519,27 @@ export default function PrintableContract({ contract, client, items, onClose }: 
                 <section className="mb-2 border-t border-gray-100 pt-0.5">
                     <h3 className="text-[10px] font-sans font-black uppercase tracking-[0.3em] text-black mb-0.5 px-1 italic">VI. Cláusulas e Condições Gerais</h3>
                     <div className="text-[7.5px] leading-[1.4] text-black text-justify font-sans space-y-2">
-                        <p><span className="font-black text-navy">1.1</span> A LOCAÇÃO É FIRMADA MEDIANTE A ENTRADA DE 50% DO VALOR DO SERVIÇO NO QUE SE REFERE A RESERVA, AOS AJUSTES, À LAVAGEM E À ORGANIZAÇÃO DO MESMO. TRATANDO-SE DE CONFECÇÃO DE PRIMEIRO ALUGUEL, O VALOR DE ENTRADA 60% DO VALOR ORÇADO.</p>
-                        <p><span className="font-black text-navy">1.2</span> EM CASO DE DESISTÊNCIA OU TROCA DO TRAJE RESERVADO, O VALOR DE ENTRADA NÃO SERÁ ESTORNADO, POIS REFERE-SE A CLAUSULA 1.1, GERANDO MULTA PELA DESISTÊNCIA. PODENDO SER DESCONTADA NO VALOR DA ENTRADA.</p>
-                        <p><span className="font-black text-navy">1.3</span> EM CASO DE MUDANÇA DE DATA DA LOCAÇÃO, O VALOR FICA RETIDO COMO RESERVA PARA PRÓXIMO ALUGUEL COM PRAZO DE LIMITE NO PERÍODO ANUAL VIGENTE.</p>
-                        <p><span className="font-black text-navy">1.4</span> QUALQUER ALTERAÇÃO SOLICITADA NO TRAJE E/OU CONFECÇÃO, SERÁ COBRADO VALOR ADICIONAL.</p>
-                        <p><span className="font-black text-navy">1.5</span> A PROVA É OBRIGATÓRIA ANTES DA RETIRADA DO TRAJE. DEVE SER MARCADA NO PERÍODO DE FUNCIONAMENTO DO ESTABELECIMENTO. SE O LOCATÁRIO ALEGAR INDISPONIBILIDADE DE HORÁRIO PARA A REALIZAÇÃO DA PROVA, O TRAJE NÃO PODERÁ SER RETIRADO. AJUSTE ADICIONAL SERÁ COBRADO.</p>
-                        <p><span className="font-black text-navy">1.6</span> A DEVOLUÇÃO DO TRAJE DEVERÁ SER FEITA NA DATA DEFINIDA PELO ESTABELECIMENTO. O ATRASO IMPLICARÁ NA COBRANÇA DE MULTA POR ATRASO. E O VALOR COBRADO PODERÁ SER MULTA POR DIA OU VALOR DE ALUGUEL, DEPENDENDO DA OCORRÊNCIA.</p>
-                        <p><span className="font-black text-navy">1.7</span> O TRAJE OS ITENS QUE OS ACOMPANHAM DEVERÃO SER DEVOLVIDOS COM O MESMO ESTADO DE CONSERVAÇÃO QUE FOI ENTREGUE. EM CASO DE DANO, SERÁ COBRADO O VALOR DO DANO E/OU DO ITEM. SE O PRODUTO FOR EXTRAVIADO OU IRREPARÁVEL, SERÁ COBRADO O VALOR TOTAL DO PRODUTO.</p>
-                        <p><span className="font-black text-navy">1.8</span> AUTORIZO A EMPIRE TRAJES FINOS FAZER USO DE MINHA IMAGEM EM MATERIAIS DE MARKETING ON LINE E IMPRESSO DA EMPRESA.</p>
+                        {contract.contractType === 'Aluguel' ? (
+                            <>
+                                <p><span className="font-black text-navy">1.1</span> A LOCAÇÃO É FIRMADA MEDIANTE A ENTRADA DE 50% DO VALOR DO SERVIÇO NO QUE SE REFERE A RESERVA, AOS AJUSTES, À LAVAGEM E À ORGANIZAÇÃO DO MESMO. TRATANDO-SE DE CONFECÇÃO DE PRIMEIRO ALUGUEL, O VALOR DE ENTRADA 60% DO VALOR ORÇADO.</p>
+                                <p><span className="font-black text-navy">1.2</span> EM CASO DE DESISTÊNCIA OU TROCA DO TRAJE RESERVADO, O VALOR DE ENTRADA NÃO SERÁ ESTORNADO, POIS REFERE-SE A CLAUSULA 1.1, GERANDO MULTA PELA DESISTÊNCIA. PODENDO SER DESCONTADA NO VALOR DA ENTRADA.</p>
+                                <p><span className="font-black text-navy">1.3</span> EM CASO DE MUDANÇA DE DATA DA LOCAÇÃO, O VALOR FICA RETIDO COMO RESERVA PARA PRÓXIMO ALUGUEL COM PRAZO DE LIMITE NO PERÍODO ANUAL VIGENTE.</p>
+                                <p><span className="font-black text-navy">1.4</span> QUALQUER ALTERAÇÃO SOLICITADA NO TRAJE E/OU CONFECÇÃO, SERÁ COBRADO VALOR ADICIONAL.</p>
+                                <p><span className="font-black text-navy">1.5</span> A PROVA É OBRIGATÓRIA ANTES DA RETIRADA DO TRAJE. DEVE SER MARCADA NO PERÍODO DE FUNCIONAMENTO DO ESTABELECIMENTO. SE O LOCATÁRIO ALEGAR INDISPONIBILIDADE DE HORÁRIO PARA A REALIZAÇÃO DA PROVA, O TRAJE NÃO PODERÁ SER RETIRADO. AJUSTE ADICIONAL SERÁ COBRADO.</p>
+                                <p><span className="font-black text-navy">1.6</span> A DEVOLUÇÃO DO TRAJE DEVERÁ SER FEITA NA DATA DEFINIDA PELO ESTABELECIMENTO. O ATRASO IMPLICARÁ NA COBRANÇA DE MULTA POR ATRASO. E O VALOR COBRADO PODERÁ SER MULTA POR DIA OU VALOR DE ALUGUEL, DEPENDENDO DA OCORRÊNCIA.</p>
+                                <p><span className="font-black text-navy">1.7</span> O TRAJE OS ITENS QUE OS ACOMPANHAM DEVERÃO SER DEVOLVIDOS COM O MESMO ESTADO DE CONSERVAÇÃO QUE FOI ENTREGUE. EM CASO DE DANO, SERÁ COBRADO O VALOR DO DANO E/OU DO ITEM. SE O PRODUTO FOR EXTRAVIADO OU IRREPARÁVEL, SERÁ COBRADO O VALOR TOTAL DO PRODUTO.</p>
+                                <p><span className="font-black text-navy">1.8</span> AUTORIZO A EMPIRE TRAJES FINOS FAZER USO DE MINHA IMAGEM EM MATERIAIS DE MARKETING ON LINE E IMPRESSO DA EMPRESA.</p>
+                            </>
+                        ) : (
+                            <>
+                                <p><span className="font-black text-navy">1.1</span> A VENDA É FIRMADA EM CARÁTER DE DEFINITIVIDADE. O PAGAMENTO INTEGRAL DEVE SER REALIZADO NO ATO DA COMPRA OU CONFORME ACORDADO PREVIAMENTE.</p>
+                                <p><span className="font-black text-navy">1.2</span> EM CASO DE DESISTÊNCIA DA COMPRA ANTES DA ENTREGA DA MERCADORIA, A EMPIRE TRAJES FINOS RESERVA-SE O DIREITO DE COBRAR MULTA DE 20% DO VALOR TOTAL PARA CUSTEOS OPERACIONAIS.</p>
+                                <p><span className="font-black text-navy">1.3</span> NÃO SERÃO ACEITAS DEVOLUÇÕES OU TROCAS DE MERCADORIAS APÓS A SAÍDA DO ESTABELECIMENTO, UMA VEZ QUE O COMPRADOR TEVE A OPORTUNIDADE DE CONFERIR A INTEGRIDADE DO PRODUTO NO ATO DA ENTREGA.</p>
+                                <p><span className="font-black text-navy">1.4</span> QUALQUER AJUSTE SOLICITADO EM PEÇAS DE VENDA FORA DO ACORDADO INICIALMENTE SERÁ COBRADO À PARTE.</p>
+                                <p><span className="font-black text-navy">1.5</span> A EMPIRE TRAJES FINOS NÃO SE RESPONSABILIZA POR MAL USO, LAVAGEM INCORRETA OU ALTERAÇÕES FEITAS POR TERCEIROS NAS PEÇAS VENDIDAS.</p>
+                                <p><span className="font-black text-navy">1.6</span> AUTORIZO A EMPIRE TRAJES FINOS FAZER USO DE MINHA IMAGEM EM MATERIAIS DE MARKETING ON LINE E IMPRESSO DA EMPRESA.</p>
+                            </>
+                        )}
                     </div>
                 </section>
 

@@ -1090,71 +1090,73 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                 </div>
 
                                 {/* Fitting and Technical Details */}
-                                <div className="space-y-6">
-                                    <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-                                        <h3 className="font-bold text-navy text-lg flex items-center gap-2 mb-4">
-                                            <span className="material-symbols-outlined text-primary">straighten</span>
-                                            Prova e Medidas
-                                        </h3>
+                                {contractType === 'Aluguel' && (
+                                    <div className="space-y-6">
+                                        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+                                            <h3 className="font-bold text-navy text-lg flex items-center gap-2 mb-4">
+                                                <span className="material-symbols-outlined text-primary">straighten</span>
+                                                Prova e Medidas
+                                            </h3>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-xs font-bold text-black uppercase tracking-wider">Data da Prova</label>
-                                                    <div className="flex gap-2">
-                                                        <div className="relative flex-1">
-                                                            <input type="date" value={fittingDate} onChange={e => setFittingDate(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-primary/10 text-sm font-medium" />
-                                                            <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-gray-400 text-lg">calendar_today</span>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-bold text-black uppercase tracking-wider">Data da Prova</label>
+                                                        <div className="flex gap-2">
+                                                            <div className="relative flex-1">
+                                                                <input type="date" value={fittingDate} onChange={e => setFittingDate(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-primary/10 text-sm font-medium" />
+                                                                <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-gray-400 text-lg">calendar_today</span>
+                                                            </div>
+                                                            <div className="relative w-28">
+                                                                <input type="time" value={fittingTime} onChange={e => setFittingTime(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-primary/10 text-sm font-medium" />
+                                                                <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-gray-400 text-lg">schedule</span>
+                                                            </div>
                                                         </div>
-                                                        <div className="relative w-28">
-                                                            <input type="time" value={fittingTime} onChange={e => setFittingTime(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-primary/10 text-sm font-medium" />
-                                                            <span className="material-symbols-outlined absolute left-2.5 top-2.5 text-gray-400 text-lg">schedule</span>
-                                                        </div>
+                                                    </div>
+
+                                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-start gap-3">
+                                                        <span className="material-symbols-outlined text-navy/40">info</span>
+                                                        <p className="text-[11px] text-gray-600 leading-relaxed">
+                                                            A prova é fundamental para garantir o ajuste perfeito. O horário sugerido é o de abertura da loja.
+                                                        </p>
                                                     </div>
                                                 </div>
 
-                                                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-start gap-3">
-                                                    <span className="material-symbols-outlined text-navy/40">info</span>
-                                                    <p className="text-[11px] text-gray-600 leading-relaxed">
-                                                        A prova é fundamental para garantir o ajuste perfeito. O horário sugerido é o de abertura da loja.
-                                                    </p>
+                                                <div className="space-y-4">
+                                                    <label className="text-xs font-bold text-black uppercase tracking-wider block">Resumo de Medidas</label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {[
+                                                            { label: 'Altura', key: 'height' },
+                                                            { label: 'Peso', key: 'weight' },
+                                                            { label: 'Sapato', key: 'shoeSize' },
+                                                            { label: 'Camisa', key: 'shirtSize' },
+                                                            { label: 'Calça', key: 'pantsSize' },
+                                                            { label: 'Paletó', key: 'jacketSize' },
+                                                            { label: 'Tórax', key: 'chest' },
+                                                            { label: 'Cintura', key: 'waist' },
+                                                            { label: 'Quadril', key: 'hips' },
+                                                            { label: 'Ombro', key: 'shoulder' },
+                                                            { label: 'Manga', key: 'sleeve' },
+                                                            { label: 'Entrepernas', key: 'inseam' },
+                                                            { label: 'Pescoço', key: 'neck' }
+                                                        ].map((m) => (
+                                                            <div key={m.key} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg border border-gray-100">
+                                                                <span className="text-[10px] font-bold text-gray-400 uppercase">{m.label}</span>
+                                                                <input
+                                                                    value={contractMeasurements?.[m.key] || ''}
+                                                                    onChange={e => setContractMeasurements({ ...contractMeasurements, [m.key]: e.target.value })}
+                                                                    className="w-12 text-right bg-transparent border-b border-gray-200 focus:border-primary outline-none text-xs font-black text-navy"
+                                                                    placeholder="--"
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400 italic text-center italic">As medidas acima são um snapshot para este contrato.</p>
                                                 </div>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <label className="text-xs font-bold text-black uppercase tracking-wider block">Resumo de Medidas</label>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {[
-                                                        { label: 'Altura', key: 'height' },
-                                                        { label: 'Peso', key: 'weight' },
-                                                        { label: 'Sapato', key: 'shoeSize' },
-                                                        { label: 'Camisa', key: 'shirtSize' },
-                                                        { label: 'Calça', key: 'pantsSize' },
-                                                        { label: 'Paletó', key: 'jacketSize' },
-                                                        { label: 'Tórax', key: 'chest' },
-                                                        { label: 'Cintura', key: 'waist' },
-                                                        { label: 'Quadril', key: 'hips' },
-                                                        { label: 'Ombro', key: 'shoulder' },
-                                                        { label: 'Manga', key: 'sleeve' },
-                                                        { label: 'Entrepernas', key: 'inseam' },
-                                                        { label: 'Pescoço', key: 'neck' }
-                                                    ].map((m) => (
-                                                        <div key={m.key} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg border border-gray-100">
-                                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{m.label}</span>
-                                                            <input
-                                                                value={contractMeasurements?.[m.key] || ''}
-                                                                onChange={e => setContractMeasurements({ ...contractMeasurements, [m.key]: e.target.value })}
-                                                                className="w-12 text-right bg-transparent border-b border-gray-200 focus:border-primary outline-none text-xs font-black text-navy"
-                                                                placeholder="--"
-                                                            />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <p className="text-[10px] text-gray-400 italic text-center italic">As medidas acima são um snapshot para este contrato.</p>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             {/* Validation Card */}
@@ -1219,60 +1221,94 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
                                     </div>
 
                                     <div className="space-y-4 pt-2">
-                                        <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100/50 space-y-4">
-                                            <div>
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Valor da Entrada</label>
-                                                    <button
-                                                        onClick={() => setPaidAmount(total * 0.5)}
-                                                        className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
-                                                    >
-                                                        Sugerir 50%
-                                                    </button>
-                                                </div>
-                                                <div className="relative">
-                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-bold text-sm">R$</span>
-                                                    <input
-                                                        type="number"
-                                                        value={paidAmount || ''}
-                                                        onChange={e => setPaidAmount(parseFloat(e.target.value) || 0)}
-                                                        className="w-full pl-10 pr-4 py-3 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-200 outline-none font-bold text-navy text-lg shadow-sm"
-                                                        placeholder="0,00"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Forma de Pagamento</label>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {['Pix', 'Dinheiro', 'Cartão', 'Link'].map(method => (
+                                        {contractType === 'Aluguel' ? (
+                                            <div className="p-4 bg-blue-50/50 rounded-xl border border-blue-100/50 space-y-4">
+                                                <div>
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <label className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Valor da Entrada</label>
                                                         <button
-                                                            key={method}
-                                                            onClick={() => setPaymentMethod(method)}
-                                                            className={`px-4 py-2.5 rounded-xl font-bold text-xs border transition-all flex items-center justify-center gap-2 ${paymentMethod === method
-                                                                ? 'bg-navy border-navy text-white shadow-lg ring-2 ring-navy/10'
-                                                                : 'bg-white border-gray-200 text-gray-600 hover:border-navy/30 hover:bg-gray-50'}`}
+                                                            onClick={() => setPaidAmount(total * 0.5)}
+                                                            className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
                                                         >
-                                                            {method === 'Pix' && <span className="material-symbols-outlined text-[16px]">qr_code_2</span>}
-                                                            {method === 'Dinheiro' && <span className="material-symbols-outlined text-[16px]">payments</span>}
-                                                            {method === 'Cartão' && <span className="material-symbols-outlined text-[16px]">credit_card</span>}
-                                                            {method === 'Link' && <span className="material-symbols-outlined text-[16px]">link</span>}
-                                                            {method}
+                                                            Sugerir 50%
                                                         </button>
-                                                    ))}
+                                                    </div>
+                                                    <div className="relative">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400 font-bold text-sm">R$</span>
+                                                        <input
+                                                            type="number"
+                                                            value={paidAmount || ''}
+                                                            onChange={e => setPaidAmount(parseFloat(e.target.value) || 0)}
+                                                            className="w-full pl-10 pr-4 py-3 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-200 outline-none font-bold text-navy text-lg shadow-sm"
+                                                            placeholder="0,00"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Forma de Pagamento</label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {['Pix', 'Dinheiro', 'Cartão', 'Link'].map(method => (
+                                                            <button
+                                                                key={method}
+                                                                onClick={() => setPaymentMethod(method)}
+                                                                className={`px-4 py-2.5 rounded-xl font-bold text-xs border transition-all flex items-center justify-center gap-2 ${paymentMethod === method
+                                                                    ? 'bg-navy border-navy text-white shadow-lg ring-2 ring-navy/10'
+                                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-navy/30 hover:bg-gray-50'}`}
+                                                            >
+                                                                {method === 'Pix' && <span className="material-symbols-outlined text-[16px]">qr_code_2</span>}
+                                                                {method === 'Dinheiro' && <span className="material-symbols-outlined text-[16px]">payments</span>}
+                                                                {method === 'Cartão' && <span className="material-symbols-outlined text-[16px]">credit_card</span>}
+                                                                {method === 'Link' && <span className="material-symbols-outlined text-[16px]">link</span>}
+                                                                {method}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        <div className="flex justify-between items-center px-2 py-3 bg-red-50 text-red-700 rounded-xl border border-red-100">
-                                            <div className="flex items-center gap-2">
-                                                <span className="material-symbols-outlined text-red-500">pending_actions</span>
-                                                <span className="text-xs font-black uppercase tracking-tighter">Saldo Remanescente</span>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Forma de Pagamento (Venda Total)</label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {['Pix', 'Dinheiro', 'Cartão', 'Link'].map(method => (
+                                                            <button
+                                                                key={method}
+                                                                onClick={() => {
+                                                                    setPaymentMethod(method);
+                                                                    setPaidAmount(total); // Auto-set total paid for sales
+                                                                }}
+                                                                className={`px-4 py-2.5 rounded-xl font-bold text-xs border transition-all flex items-center justify-center gap-2 ${paymentMethod === method
+                                                                    ? 'bg-navy border-navy text-white shadow-lg ring-2 ring-navy/10'
+                                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-navy/30 hover:bg-gray-50'}`}
+                                                            >
+                                                                {method === 'Pix' && <span className="material-symbols-outlined text-[16px]">qr_code_2</span>}
+                                                                {method === 'Dinheiro' && <span className="material-symbols-outlined text-[16px]">payments</span>}
+                                                                {method === 'Cartão' && <span className="material-symbols-outlined text-[16px]">credit_card</span>}
+                                                                {method === 'Link' && <span className="material-symbols-outlined text-[16px]">link</span>}
+                                                                {method}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center gap-3">
+                                                    <span className="material-symbols-outlined text-emerald-600">check_circle</span>
+                                                    <p className="text-[11px] font-black text-emerald-800 uppercase">Venda Definitiva: Valor Total será faturado.</p>
+                                                </div>
                                             </div>
-                                            <span className="text-lg font-black tracking-tight">
-                                                R$ {(total - (paidAmount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                            </span>
-                                        </div>
+                                        )}
+
+                                        {contractType === 'Aluguel' && (
+                                            <div className="flex justify-between items-center px-2 py-3 bg-red-50 text-red-700 rounded-xl border border-red-100">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-red-500">pending_actions</span>
+                                                    <span className="text-xs font-black uppercase tracking-tighter">Saldo Remanescente</span>
+                                                </div>
+                                                <span className="text-lg font-black tracking-tight">
+                                                    R$ {(total - (paidAmount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="pt-2">

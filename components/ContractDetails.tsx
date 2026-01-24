@@ -281,18 +281,20 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                         </h3>
                         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                             <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex flex-col sm:flex-row justify-between gap-4">
-                                <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Prova de Roupa</p>
-                                    <div className="flex items-center gap-2 text-navy">
-                                        <span className="material-symbols-outlined text-lg text-primary">schedule</span>
-                                        <span className="font-bold">
-                                            {contract.fittingDate ? new Date(contract.fittingDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não agendada'}
-                                            {contract.fittingTime && ` às ${contract.fittingTime}`}
-                                        </span>
+                                {contract.contractType !== 'Venda' && (
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Prova de Roupa</p>
+                                        <div className="flex items-center gap-2 text-navy">
+                                            <span className="material-symbols-outlined text-lg text-primary">schedule</span>
+                                            <span className="font-bold">
+                                                {contract.fittingDate ? new Date(contract.fittingDate.split('T')[0] + 'T00:00:00').toLocaleDateString('pt-BR') : 'Não agendada'}
+                                                {contract.fittingTime && ` às ${contract.fittingTime}`}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                                 {contract.paymentMethod && (
-                                    <div className="text-right">
+                                    <div className={contract.contractType === 'Venda' ? 'text-left' : 'text-right'}>
                                         <p className="text-[10px] text-gray-400 uppercase font-black mb-1">Forma de Pagamento</p>
                                         <span className="px-3 py-1 bg-white rounded-lg text-xs font-bold border border-gray-200 shadow-sm text-navy uppercase tracking-wider">
                                             {contract.paymentMethod}
@@ -303,31 +305,38 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
 
                             <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {/* Measurements Snapshot */}
-                                <div>
-                                    <p className="text-[10px] text-gray-400 uppercase font-black mb-3">Medidas no Contrato</p>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {contract.measurements ? (
-                                            Object.entries(contract.measurements).map(([key, value]) => {
-                                                const labels: Record<string, string> = {
-                                                    height: 'Altura', weight: 'Peso', shoeSize: 'Sapato',
-                                                    shirtSize: 'Camisa', pantsSize: 'Calça', jacketSize: 'Paletó',
-                                                    chest: 'Tórax', waist: 'Cintura', hips: 'Quadril',
-                                                    shoulder: 'Ombro', sleeve: 'Manga', inseam: 'Entrepernas',
-                                                    neck: 'Pescoço'
-                                                };
-                                                if (!labels[key]) return null;
-                                                return (
-                                                    <div key={key} className="flex justify-between items-center p-2 bg-gray-50/50 rounded-lg border border-gray-100">
-                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{labels[key]}</span>
-                                                        <span className="text-xs font-black text-navy">{String(value) || '--'}</span>
-                                                    </div>
-                                                );
-                                            })
-                                        ) : (
-                                            <p className="text-xs text-gray-400 italic col-span-2">Sem medidas registradas.</p>
-                                        )}
+                                {contract.contractType !== 'Venda' ? (
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-black mb-3">Medidas no Contrato</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {contract.measurements ? (
+                                                Object.entries(contract.measurements).map(([key, value]) => {
+                                                    const labels: Record<string, string> = {
+                                                        height: 'Altura', weight: 'Peso', shoeSize: 'Sapato',
+                                                        shirtSize: 'Camisa', pantsSize: 'Calça', jacketSize: 'Paletó',
+                                                        chest: 'Tórax', waist: 'Cintura', hips: 'Quadril',
+                                                        shoulder: 'Ombro', sleeve: 'Manga', inseam: 'Entrepernas',
+                                                        neck: 'Pescoço'
+                                                    };
+                                                    if (!labels[key]) return null;
+                                                    return (
+                                                        <div key={key} className="flex justify-between items-center p-2 bg-gray-50/50 rounded-lg border border-gray-100">
+                                                            <span className="text-[10px] font-bold text-gray-400 uppercase">{labels[key]}</span>
+                                                            <span className="text-xs font-black text-navy">{String(value) || '--'}</span>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <p className="text-xs text-gray-400 italic col-span-2">Sem medidas registradas.</p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100 h-fit">
+                                        <span className="material-symbols-outlined text-gray-400">inventory_2</span>
+                                        <p className="text-[11px] font-bold text-gray-500 uppercase">Item vendido: Medidas e provas não aplicáveis.</p>
+                                    </div>
+                                )}
 
                                 {/* Observations */}
                                 <div className="flex flex-col">
@@ -385,7 +394,7 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                                         <span className={`material-symbols-outlined text-sm ${contract.lesseeSignature || contract.isPhysicallySigned ? 'text-emerald-600' : 'text-gray-400'}`}>
                                             {contract.lesseeSignature || contract.isPhysicallySigned ? 'check_circle' : 'pending'}
                                         </span>
-                                        <span className="text-xs font-bold uppercase text-gray-600">Cliente / Locatário</span>
+                                        <span className="text-xs font-bold uppercase text-gray-600">{contract.contractType === 'Venda' ? 'Comprador' : 'Cliente / Locatário'}</span>
                                     </div>
                                     {contract.isPhysicallySigned && (
                                         <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded uppercase tracking-tighter">Papel</span>
@@ -500,7 +509,7 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                 isOpen={isSignatureModalOpen}
                 onClose={() => setIsSignatureModalOpen(false)}
                 onSave={handleSaveSig}
-                title={sigType === 'lessee' ? 'Assinatura do Cliente / Locatário' : 'Assinatura Representante Empire'}
+                title={sigType === 'lessee' ? (contract.contractType === 'Venda' ? 'Assinatura do Comprador' : 'Assinatura do Cliente / Locatário') : 'Assinatura Representante Empire'}
             />
 
             {/* Cancel Modal */}
@@ -509,7 +518,7 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                 onClose={() => setIsCancelModalOpen(false)}
                 onConfirm={handleCancelContract}
                 title="Cancelar Contrato"
-                description="Tem certeza que deseja cancelar este contrato? Os itens serão liberados para novas locações imediatamente."
+                description={contract.contractType === 'Venda' ? "Tem certeza que deseja cancelar esta venda? Os itens retornarão ao estoque imediatamente." : "Tem certeza que deseja cancelar este contrato? Os itens serão liberados para novas locações imediatamente."}
                 confirmText="Sim, Cancelar Contrato"
                 isDangerous={true}
             />
