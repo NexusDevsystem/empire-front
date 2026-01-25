@@ -1,4 +1,4 @@
-const CACHE_NAME = 'empire-erp-v1';
+const CACHE_NAME = 'empire-erp-v2'; // Incremented version
 const urlsToCache = [
     '/',
     '/index.html',
@@ -6,15 +6,32 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+    self.skipWaiting(); // Force activation
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => cache.addAll(urlsToCache))
     );
 });
 
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(cacheNames => {
+            return Promise.all(
+                cacheNames.map(cacheName => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+});
+
 self.addEventListener('fetch', event => {
+    // Network First strategy
     event.respondWith(
-        caches.match(event.request)
-            .then(response => response || fetch(event.request))
+        fetch(event.request).catch(() => {
+            return caches.match(event.request);
+        })
     );
 });
