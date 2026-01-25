@@ -368,6 +368,18 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
         if (event) {
             const isSale = event.contract.contractType === 'Venda';
 
+            // Fix for "Finalizado" (Returned) items:
+            // If the contract is finalized, it shouldn't show as "Booked" for today or future dates in the status card.
+            // It should only appear as history for past dates.
+            if (event.contract.status === 'Finalizado') {
+                const checkTime = new Date(date).setHours(0, 0, 0, 0);
+                const todayTime = new Date().setHours(0, 0, 0, 0);
+
+                if (checkTime >= todayTime) {
+                    return { status: 'free', label: 'Livre', color: 'green' };
+                }
+            }
+
             // For sales, we only show 'Vendido' on the day of sale or after in the calendar,
             // but in the status list it's always 'Vendido' if the sale already happened.
             const saleDate = new Date(event.start).setHours(0, 0, 0, 0);
