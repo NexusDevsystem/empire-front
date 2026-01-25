@@ -4,24 +4,25 @@ import { useApp } from '../contexts/AppContext';
 export default function Dashboard() {
   const { contracts, appointments, transactions } = useApp();
 
+  // Normalize today to YYYY-MM-DD string to avoid timezone issues with toLocaleDateString
+  const toYMD = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Normalizing DB date strings (often ISO) to YYYY-MM-DD
+  const normalizeDate = (dateStr: string) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('T')) return dateStr.split('T')[0];
+    return dateStr;
+  };
+
+  const todayStr = toYMD(new Date());
+
   const stats = useMemo(() => {
     const today = new Date();
-    // Normalize today to YYYY-MM-DD string to avoid timezone issues with toLocaleDateString
-    const toYMD = (d: Date) => {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
-    // Normalizing DB date strings (often ISO) to YYYY-MM-DD
-    const normalizeDate = (dateStr: string) => {
-      if (!dateStr) return '';
-      if (dateStr.includes('T')) return dateStr.split('T')[0];
-      return dateStr;
-    };
-
-    const todayStr = toYMD(today);
 
     // Helpers
     const isOverdue = (dateStr: string) => normalizeDate(dateStr) < todayStr;
@@ -122,25 +123,41 @@ export default function Dashboard() {
     const monthStats = calculateFinancials(monthStartStr, monthEndStr);
 
     return { overdue, dailyops, next10, dayStats, weekStats, monthStats };
-  }, [contracts, appointments, transactions]);
+  }, [contracts, appointments, transactions, todayStr]);
 
   // --- PAYABLES / RECEIVABLES (Added) ---
   const receivables = useMemo(() => {
-    const activeContracts = contracts.filter(c => c.status !== 'Cancelado' && c.status !== 'Rascunho' && (c.balance || 0) > 0);
-    const total = activeContracts.reduce((acc, c) => acc + (c.balance || 0), 0);
+    // Check balance or calculate it if missing
+    const activeContracts = contracts.filter(c => {
+      if (c.status === 'Cancelado' || c.status === 'Rascunho') return false;
+
+      // Use stored balance OR calculate it dynamically
+      const balance = c.balance !== undefined ? c.balance : (c.totalValue - (c.paidAmount || 0));
+      return balance > 0;
+    });
+
+    const total = activeContracts.reduce((acc, c) => {
+      const balance = c.balance !== undefined ? c.balance : (c.totalValue - (c.paidAmount || 0));
+      return acc + balance;
+    }, 0);
+
     return { total, count: activeContracts.length };
   }, [contracts]);
 
   const payables = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const futureExpenses = transactions.filter(t => t.type === 'expense' && new Date(t.date).toISOString().split('T')[0] >= todayStr);
+    const futureExpenses = transactions.filter(t => {
+      if (t.type !== 'expense') return false;
+      const dStr = normalizeDate(t.date);
+      return dStr >= todayStr;
+    });
+
     const total = futureExpenses.reduce((acc, t) => acc + t.amount, 0);
     return { total, count: futureExpenses.length };
-  }, [transactions]);
+  }, [transactions, todayStr]);
 
   // --- AGENDA TODAY ---
   const agendaToday = useMemo(() => {
-    const isToday = (dateStr: string) => dateStr === new Date().toLocaleDateString('en-CA');
+    const isToday = (dateStr: string) => normalizeDate(dateStr) === todayStr;
     return appointments
       .filter(a => isToday(a.date))
       .sort((a, b) => a.time.localeCompare(b.time));
