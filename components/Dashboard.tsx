@@ -68,15 +68,17 @@ export default function Dashboard() {
     // Note: Using startDate as proxy for "Order Date" since createdAt is not available on frontend types easily
     // For "Total Recebido", we sum paidAmount of contracts in that period + income transactions.
 
-    const calculateFinancials = (startDate: Date, endDate: Date) => {
+    const calculateFinancials = (startStr: string, endStr: string) => {
       let totalOrders = 0;
       let totalReceived = 0;
       let numOrders = 0;
 
       // Filter contracts within period
       contracts.forEach(c => {
-        const d = new Date(c.startDate); // Proxy for order date
-        if (d >= startDate && d <= endDate && c.status !== 'Cancelado') {
+        const dStr = normalizeDate(c.startDate);
+        if (!dStr) return;
+
+        if (dStr >= startStr && dStr <= endStr && c.status !== 'Cancelado') {
           totalOrders += c.totalValue;
           totalReceived += (c.paidAmount || 0); // Simplified: assumes payment happens on order date
           numOrders++;
@@ -85,8 +87,10 @@ export default function Dashboard() {
 
       // Add standalone transactions
       transactions.forEach(t => {
-        const d = new Date(t.date);
-        if (t.type === 'income' && d >= startDate && d <= endDate) {
+        const dStr = normalizeDate(t.date);
+        if (!dStr) return;
+
+        if (t.type === 'income' && dStr >= startStr && dStr <= endStr) {
           totalReceived += t.amount;
         }
       });
@@ -95,23 +99,27 @@ export default function Dashboard() {
     };
 
     // Day
-    const dayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const dayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
-    const dayStats = calculateFinancials(dayStart, dayEnd);
+    const dayStats = calculateFinancials(todayStr, todayStr);
 
     // Week
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay()); // Sunday
-    weekStart.setHours(0, 0, 0, 0);
+    const weekStartStr = toYMD(weekStart);
+
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999);
-    const weekStats = calculateFinancials(weekStart, weekEnd);
+    const weekEndStr = toYMD(weekEnd);
+
+    const weekStats = calculateFinancials(weekStartStr, weekEndStr);
 
     // Month
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
-    const monthStats = calculateFinancials(monthStart, monthEnd);
+    const monthStartStr = toYMD(monthStart);
+
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const monthEndStr = toYMD(monthEnd);
+
+    const monthStats = calculateFinancials(monthStartStr, monthEndStr);
 
     return { overdue, dailyops, next10, dayStats, weekStats, monthStats };
   }, [contracts, appointments, transactions]);
