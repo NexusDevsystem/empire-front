@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import { useApp } from '../contexts/AppContext';
 
 export default function Dashboard() {
-  const { contracts, appointments, transactions } = useApp();
+  const { contracts, appointments, transactions, user, profile } = useApp();
+  const role = profile?.role || user?.role;
+  const isVendedor = role === 'vendedor';
 
   // Normalize today to YYYY-MM-DD string to avoid timezone issues with toLocaleDateString
   const toYMD = (d: Date) => {
@@ -145,15 +147,13 @@ export default function Dashboard() {
   }, [contracts]);
 
   const payables = useMemo(() => {
-    const futureExpenses = transactions.filter(t => {
-      if (t.type !== 'expense') return false;
-      const dStr = normalizeDate(t.date);
-      return dStr >= todayStr;
+    const pendingExpenses = transactions.filter(t => {
+      return t.type === 'expense' && t.status === 'pendente';
     });
 
-    const total = futureExpenses.reduce((acc, t) => acc + t.amount, 0);
-    return { total, count: futureExpenses.length };
-  }, [transactions, todayStr]);
+    const total = pendingExpenses.reduce((acc, t) => acc + t.amount, 0);
+    return { total, count: pendingExpenses.length };
+  }, [transactions]);
 
   // --- AGENDA TODAY ---
   const agendaToday = useMemo(() => {
@@ -308,50 +308,56 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Bottom Row: Financials */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Bottom Row: Financials - Hidden for Vendedor */}
+      {!isVendedor && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-        {/* Card 4: Daily Results */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-navy mb-6 text-lg">Resultados do dia</h3>
-          <div className="flex flex-col">
-            <FinRow label="Total de pedidos" value={stats.dayStats.totalOrders} icon="assignment" isCurrency />
-            <FinRow label="Total recebido" value={stats.dayStats.totalReceived} icon="payments" isCurrency />
-            <FinRow label="Número de pedidos" value={stats.dayStats.numOrders} icon="shopping_cart" />
+          {/* Card 4: Daily Results */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-navy mb-6 text-lg">Resultados do dia</h3>
+            <div className="flex flex-col">
+              <FinRow label="Total de pedidos" value={stats.dayStats.totalOrders} icon="assignment" isCurrency />
+              <FinRow label="Total recebido" value={stats.dayStats.totalReceived} icon="payments" isCurrency />
+              <FinRow label="Número de pedidos" value={stats.dayStats.numOrders} icon="shopping_cart" />
+            </div>
           </div>
-        </div>
 
-        {/* Card 5: Weekly Results */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-navy mb-6 text-lg">Resultados da semana</h3>
-          <div className="flex flex-col">
-            <FinRow label="Total de pedidos" value={stats.weekStats.totalOrders} icon="assignment" isCurrency />
-            <FinRow label="Total recebido" value={stats.weekStats.totalReceived} icon="payments" isCurrency />
-            <FinRow label="Número de pedidos" value={stats.weekStats.numOrders} icon="shopping_cart" />
+          {/* Card 5: Weekly Results */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-navy mb-6 text-lg">Resultados da semana</h3>
+            <div className="flex flex-col">
+              <FinRow label="Total de pedidos" value={stats.weekStats.totalOrders} icon="assignment" isCurrency />
+              <FinRow label="Total recebido" value={stats.weekStats.totalReceived} icon="payments" isCurrency />
+              <FinRow label="Número de pedidos" value={stats.weekStats.numOrders} icon="shopping_cart" />
+            </div>
           </div>
-        </div>
 
-        {/* Card 6: Monthly Results */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h3 className="font-bold text-navy mb-6 text-lg">Resultados do mês</h3>
-          <div className="flex flex-col">
-            <FinRow label="Total de pedidos" value={stats.monthStats.totalOrders} icon="assignment" isCurrency />
-            <FinRow label="Total recebido" value={stats.monthStats.totalReceived} icon="payments" isCurrency />
-            <FinRow label="Número de pedidos" value={stats.monthStats.numOrders} icon="shopping_cart" />
+          {/* Card 6: Monthly Results */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <h3 className="font-bold text-navy mb-6 text-lg">Resultados do mês</h3>
+            <div className="flex flex-col">
+              <FinRow label="Total de pedidos" value={stats.monthStats.totalOrders} icon="assignment" isCurrency />
+              <FinRow label="Total recebido" value={stats.monthStats.totalReceived} icon="payments" isCurrency />
+              <FinRow label="Número de pedidos" value={stats.monthStats.numOrders} icon="shopping_cart" />
+            </div>
           </div>
-        </div>
 
-      </div>
+        </div>
+      )}
 
       {/* 3. Account & Agenda Row (New) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <KPI_Card title="Contas a pagar" data={payables} type="pay" />
-        <KPI_Card title="Contas a receber" data={receivables} type="receive" />
+      <div className={`grid grid-cols-1 ${isVendedor ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-6 mt-8`}>
+        {!isVendedor && (
+          <>
+            <KPI_Card title="Contas a pagar" data={payables} type="pay" />
+            <KPI_Card title="Contas a receber" data={receivables} type="receive" />
+          </>
+        )}
 
         {/* Agenda Card */}
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h3 className="font-bold text-navy mb-4 text-lg">Agenda do dia</h3>
-          <div className="space-y-3 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
+          <div className={`space-y-3 ${isVendedor ? 'max-h-[300px]' : 'max-h-[160px]'} overflow-y-auto custom-scrollbar pr-1`}>
             {agendaToday.length === 0 ? (
               <p className="text-gray-400 text-sm mt-2">Nenhum compromisso marcado pra hoje...</p>
             ) : (

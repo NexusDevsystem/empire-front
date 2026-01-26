@@ -66,6 +66,8 @@ export interface Transaction {
     type: 'income' | 'expense';
     category: string;
     date: string; // ISO Date String
+    dueDate?: string; // Optional due date for payables
+    status?: 'pago' | 'pendente'; // New field for payables
     contractId?: string; // Optional link to a contract
 }
 export type EventType = string;

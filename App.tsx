@@ -17,6 +17,7 @@ import AvailabilitySearch from './components/AvailabilitySearch';
 import PendingApprovalScreen from './components/PendingApprovalScreen';
 import NotificationBell from './components/NotificationBell';
 import SystemHistory from './components/SystemHistory';
+import Payables from './components/Payables';
 
 export default function App() {
   const { showWizard, openWizard, closeWizard, currentView, navigateTo, user, isLoading, profile, signOut } = useApp();
@@ -32,6 +33,16 @@ export default function App() {
   }
 
   const renderView = () => {
+    const role = profile?.role || user?.role;
+    const isVendedor = role === 'vendedor';
+
+    // Restricted views for 'vendedor'
+    const restrictedViews = ['financial', 'team', 'settings', 'history', 'payables'];
+
+    if (isVendedor && restrictedViews.includes(currentView)) {
+      return <Agenda />;
+    }
+
     switch (currentView) {
       case 'dashboard': return <Dashboard />;
       case 'inventory': return <Inventory />;
@@ -44,6 +55,7 @@ export default function App() {
       case 'settings': return <Settings />;
       case 'availability': return <AvailabilitySearch />;
       case 'history': return <SystemHistory />;
+      case 'payables': return <Payables />;
       default: return <Agenda />;
     }
   };
@@ -75,6 +87,7 @@ export default function App() {
       label: 'GESTÃO',
       items: [
         { id: 'financial', icon: 'attach_money', label: 'Financeiro' },
+        { id: 'payables', icon: 'payments', label: 'Contas a Pagar' },
         { id: 'team', icon: 'badge', label: 'Equipe' },
         { id: 'history', icon: 'history', label: 'Histórico' },
         { id: 'settings', icon: 'settings', label: 'Configurações' },

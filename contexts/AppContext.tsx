@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Item, Contract, Client, ContractStatus, Appointment, Transaction, Employee } from '../types';
-import { authAPI, itemsAPI, clientsAPI, contractsAPI, appointmentsAPI, transactionsAPI, employeesAPI } from '../services/api';
+import { authAPI, itemsAPI, clientsAPI, contractsAPI, appointmentsAPI, transactionsAPI, employeesAPI, notificationsAPI } from '../services/api';
 
 // --- Interfaces ---
 
@@ -38,6 +38,7 @@ interface AppContextType {
     deleteAppointment: (appointmentId: string) => Promise<void>;
 
     addTransaction: (transaction: Transaction) => Promise<void>;
+    updateTransaction: (transactionId: string, data: Partial<Transaction>) => Promise<void>;
     deleteTransaction: (transactionId: string) => Promise<void>;
 
     addEmployee: (employee: Employee) => Promise<void>;
@@ -64,6 +65,7 @@ interface AppContextType {
     notifications: any[];
     unreadCount: number;
     markAsRead: (id: string) => Promise<void>;
+    markAllRead: (id: string) => Promise<void>; // id can be 'all'
     addNotification: (notification: any) => Promise<void>;
     selectedContractId: string | null;
     setSelectedContractId: (id: string | null) => void;
@@ -190,6 +192,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
+    // Monitor for pending payables and generate alerts
+    useEffect(() => {
+        if (transactions.length > 0 && (user?.role === 'admin' || user?.role === 'gerente')) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            setNotifications(prev => {
+                const currentNotifs = [...prev];
+                let hasChanges = false;
+
+                transactions.forEach(t => {
+                    if (t.type === 'expense' && t.status === 'pendente' && t.dueDate) {
+                        const dueDate = new Date(t.dueDate);
+                        dueDate.setHours(0, 0, 0, 0);
+
+                        const diffTime = dueDate.getTime() - today.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                        const alertId = `debt-${t.id}`;
+                        const alreadyExists = currentNotifs.some(n => n.id === alertId);
+
+                        if (!alreadyExists) {
+                            if (diffDays <= 3 && diffDays >= 0) {
+                                currentNotifs.unshift({
+                                    id: alertId,
+                                    title: diffDays === 0 ? 'Vence Hoje! 💸' : 'Vencimento Próximo 🔔',
+                                    message: `A conta "${t.description}" de R$ ${t.amount.toLocaleString('pt-BR')} vence ${diffDays === 0 ? 'hoje' : 'em ' + diffDays + ' dias'}.`,
+                                    type: 'warning',
+                                    date: new Date().toISOString(),
+                                    read: false
+                                });
+                                hasChanges = true;
+                            } else if (diffDays < 0) {
+                                currentNotifs.unshift({
+                                    id: alertId,
+                                    title: 'Conta em Atraso ⚠️',
+                                    message: `A conta "${t.description}" de R$ ${t.amount.toLocaleString('pt-BR')} venceu em ${dueDate.toLocaleDateString('pt-BR')}.`,
+                                    type: 'error',
+                                    date: new Date().toISOString(),
+                                    read: false
+                                });
+                                hasChanges = true;
+                            }
+                        }
+                    }
+                });
+
+                return hasChanges ? currentNotifs : prev;
+            });
+        }
+    }, [transactions, user]);
+
     const openWizard = (initialData?: { startDate?: string; endDate?: string; itemIds?: string[] }) => {
         if (initialData) {
             setWizardInitialData(initialData);
@@ -232,17 +286,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const loadData = async (userRole?: string) => {
         try {
             // Basic data - Everyone can see
-            const [itemsData, clientsData, contractsData, appointmentsData] = await Promise.all([
+            const [itemsData, clientsData, contractsData, appointmentsData, notificationsData] = await Promise.all([
                 itemsAPI.getAll().catch(err => { console.error('Items load error:', err); return []; }),
                 clientsAPI.getAll().catch(err => { console.error('Clients load error:', err); return []; }),
                 contractsAPI.getAll().catch(err => { console.error('Contracts load error:', err); return []; }),
-                appointmentsAPI.getAll().catch(err => { console.error('Appointments load error:', err); return []; })
+                appointmentsAPI.getAll().catch(err => { console.error('Appointments load error:', err); return []; }),
+                notificationsAPI.getAll().catch(err => { console.error('Notifications load error:', err); return []; })
             ]);
 
             setItems(itemsData.map(mapItemFromDB));
             setClients(clientsData.map(mapClientFromDB));
             setContracts(contractsData);
             setAppointments(appointmentsData.map(mapAppointmentFromDB));
+            setNotifications(notificationsData);
 
             // Restricted data - Check role
             const role = userRole || profile?.role || user?.role;
@@ -450,6 +506,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTransactions(prev => [saved, ...prev]);
     };
 
+    const updateTransaction = async (transactionId: string, data: Partial<Transaction>) => {
+        const saved = await transactionsAPI.update(transactionId, data);
+        setTransactions(prev => prev.map(t => t.id === transactionId ? saved : t));
+    };
+
     const deleteTransaction = async (transactionId: string) => {
         await transactionsAPI.delete(transactionId);
         setTransactions(prev => prev.filter(t => t.id !== transactionId));
@@ -479,11 +540,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Notifications
     const markAsRead = async (id: string) => {
-        setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        try {
+            await notificationsAPI.markRead(id);
+            setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+        }
+    };
+
+    const markAllRead = async () => {
+        try {
+            await notificationsAPI.markAllRead();
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+        }
     };
 
     const addNotification = async (notification: any) => {
-        setNotifications(prev => [{ ...notification, id: 'notif-' + Date.now(), read: false }, ...prev]);
+        // For now, if adding on frontend, we don't necessarily persist here unless it's a backend event.
+        // But for consistency we'll add to state.
+        setNotifications(prev => [{ ...notification, id: notification.id || 'notif-' + Date.now(), read: false }, ...prev]);
     };
 
     // Helper
@@ -547,6 +624,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateAppointment,
         deleteAppointment,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
         addEmployee,
         updateEmployee,
@@ -568,6 +646,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         notifications,
         unreadCount,
         markAsRead,
+        markAllRead,
         addNotification,
         selectedContractId,
         setSelectedContractId,

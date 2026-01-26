@@ -141,6 +141,10 @@ export const transactionsAPI = {
         const { data } = await api.post('/transactions', transaction);
         return data;
     },
+    update: async (id: string, transaction: any) => {
+        const { data } = await api.put(`/transactions/${id}`, transaction);
+        return data;
+    },
     delete: async (id: string) => {
         const { data } = await api.delete(`/transactions/${id}`);
         return data;
@@ -167,6 +171,14 @@ export const employeesAPI = {
 export const notificationsAPI = {
     getAll: async () => {
         const { data } = await api.get('/notifications');
+        return data;
+    },
+    markRead: async (id: string) => {
+        const { data } = await api.put(`/notifications/${id}/read`);
+        return data;
+    },
+    markAllRead: async () => {
+        const { data } = await api.put('/notifications/read-all');
         return data;
     }
 };
