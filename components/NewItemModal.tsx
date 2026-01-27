@@ -20,6 +20,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
         type: '',
         img: '',
         quantity: 1,
+        code: '',
         price: 0
     });
 
@@ -137,7 +138,7 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
             return;
         }
         onSave(newItem);
-        setNewItem({ status: 'Disponível', statusColor: 'primary', type: '', img: '', price: 0, color: '' });
+        setNewItem({ status: 'Disponível', statusColor: 'primary', type: '', img: '', price: 0, color: '', code: '' });
         onClose();
     };
 
@@ -265,12 +266,12 @@ export default function NewItemModal({ isOpen, onClose, onSave }: NewItemModalPr
                                             />
                                         </div>
                                         <div>
-                                            <label className="text-xs font-bold text-navy uppercase ml-1 mb-1.5 block">Localização</label>
+                                            <label className="text-xs font-bold text-navy uppercase ml-1 mb-1.5 block">Código do Produto</label>
                                             <input
-                                                value={newItem.loc || ''}
-                                                onChange={e => setNewItem({ ...newItem, loc: e.target.value })}
+                                                value={newItem.code || ''}
+                                                onChange={e => setNewItem({ ...newItem, code: e.target.value })}
                                                 className="w-full h-11 px-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all outline-none font-medium text-navy placeholder-gray-400"
-                                                placeholder="Ex: A-12"
+                                                placeholder="Ex: #12345"
                                             />
                                         </div>
                                     </div>

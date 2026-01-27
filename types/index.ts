@@ -9,6 +9,7 @@ export interface Item {
     statusColor: string; // 'primary' | 'red' | 'orange' | 'cyan' | 'purple'
     img: string;
     loc: string; // Location code or status text
+    code?: string; // Product Code
     color?: string;
     note?: string; // e.g. "24 Out - 28 Out"
     price: number; // Rental price in BRL
@@ -170,4 +171,18 @@ export interface Employee {
     status: 'Ativo' | 'Férias' | 'Afastado' | 'Desligado';
     avatar?: string;
     notes?: string;
+}
+
+export interface Receipt {
+    id: string; // Mongo ID
+    number: number;
+    value: number;
+    clientName: string;
+    clientDoc?: string;
+    clientId?: string;
+    date: string;
+    concept: string;
+    paymentMethod: string;
+    contractId?: string;
+    created_at?: string;
 }

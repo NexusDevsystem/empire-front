@@ -88,6 +88,7 @@ const mapItemFromDB = (db: any): Item => ({
     statusColor: db.status_color || 'primary',
     img: db.image_url || '',
     loc: db.location || '',
+    code: db.code || '',
     note: db.notes || '',
 
     // Campos de quantidade
@@ -112,6 +113,7 @@ const mapItemToDB = (item: Item) => ({
     available_quantity: item.availableQuantity,
     rented_units: item.rentedUnits,
     location: item.loc,
+    code: item.code,
     notes: item.note
 });
 
@@ -375,9 +377,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Items
     const addItem = async (item: Item) => {
-        const dbItem = mapItemToDB(item);
-        const saved = await itemsAPI.create(dbItem);
-        setItems(prev => [...prev, mapItemFromDB(saved)]);
+        // Optimistic UI Update
+        const tempId = crypto.randomUUID();
+        const tempItem: Item = { ...item, id: tempId };
+
+        // 1. Update UI immediately
+        setItems(prev => [...prev, tempItem]);
+
+        try {
+            // 2. Perform API call
+            const dbItem = mapItemToDB(item);
+            const saved = await itemsAPI.create(dbItem);
+            const savedItem = mapItemFromDB(saved);
+
+            // 3. Replace temp item with real item
+            setItems(prev => prev.map(i => i.id === tempId ? savedItem : i));
+        } catch (error) {
+            console.error('[AppContext] Error adding item:', error);
+            // Revert optimistic update
+            setItems(prev => prev.filter(i => i.id !== tempId));
+            throw error; // Let caller handle/show toast
+        }
     };
 
     const updateItemStatus = async (itemId: string, status: Item['status'], loc?: string) => {
@@ -398,14 +418,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Clients
     const addClient = async (client: Client) => {
+        // Optimistic UI Update
+        const tempId = crypto.randomUUID();
+        const tempClient: Client = { ...client, id: tempId };
+
+        // 1. Update UI immediately
+        setClients(prev => [...prev, tempClient]);
+
         try {
             const dbClient = mapClientToDB(client);
             const saved = await clientsAPI.create(dbClient);
             const mapped = mapClientFromDB(saved);
-            setClients(prev => [...prev, mapped]);
+
+            // 2. Replace temp client with real client
+            setClients(prev => prev.map(c => c.id === tempId ? mapped : c));
             return mapped;
         } catch (error) {
             console.error('[AppContext] Error adding client:', error);
+            // Revert optimistic update
+            setClients(prev => prev.filter(c => c.id !== tempId));
             throw error;
         }
     };
@@ -423,11 +454,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Contracts
     const addContract = async (contract: Contract) => {
+        // Optimistic UI Update
+        const tempId = crypto.randomUUID();
+        const tempContract: Contract = { ...contract, id: tempId };
+
+        // 1. Update UI immediately
+        setContracts(prev => [...prev, tempContract]);
+
+        // Optimistic update for inventory reduction
+        const originalItems = [...items]; // Backup for rollback
+        if (contract.saleItems && contract.saleItems.length > 0) {
+            const salesMap: Record<string, number> = {};
+            contract.saleItems.forEach(id => {
+                salesMap[id] = (salesMap[id] || 0) + 1;
+            });
+            setItems(prev => prev.map(item => {
+                if (salesMap[item.id]) {
+                    const newTotal = (item.totalQuantity || 1) - salesMap[item.id];
+                    const newAvail = (item.availableQuantity || 1) - salesMap[item.id];
+                    return { ...item, totalQuantity: Math.max(0, newTotal), availableQuantity: Math.max(0, newAvail) };
+                }
+                return item;
+            }));
+        }
+
+
         try {
             const saved = await contractsAPI.create(contract);
-            setContracts(prev => [...prev, saved]);
 
-            // Reduction logic for sold items
+            // 2. Replace temp contract with real contract
+            setContracts(prev => prev.map(c => c.id === tempId ? saved : c));
+
+            // Sync inventory reduction with API (backend handles logic, but we persist state)
+            // Ideally we would fetch updated items here, but to avoid extra requests we trust the optimistic logic matches backend
+            // For now, let's keep the updateItem calls as "catch-up" or ensure backend did it.
+            // Since backend "create contract" usually decrements stock if it's a sale, we might not need to call updateItem manually
+            // unless the backend API doesn't handle stock decrement.
+            // Assuming the original code called updateItem purely to sync frontend->backend manual decrement:
+            // Since we are optimizing, let's trust the backend or fire-and-forget the update items if needed.
+            // The original code was calculating and calling updateItem. Let's keep doing it properly in background.
+
             if (contract.saleItems && contract.saleItems.length > 0) {
                 const salesMap: Record<string, number> = {};
                 contract.saleItems.forEach(id => {
@@ -435,16 +501,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 });
 
                 for (const [itemId, qty] of Object.entries(salesMap)) {
-                    const item = items.find(i => i.id === itemId);
+                    // We already optimistically updated UI. Now perform backend update to be safe if `create contract` doesn't do it automagically
+                    const item = originalItems.find(i => i.id === itemId);
                     if (item) {
                         const newTotal = (item.totalQuantity || 1) - qty;
                         const newAvail = (item.availableQuantity || 1) - qty;
-
-                        // Use updateItem to sync with DB and local state
-                        await updateItem(itemId, {
+                        // Await these updates without blocking the UI return since we already updated state
+                        updateItem(itemId, {
                             totalQuantity: Math.max(0, newTotal),
                             availableQuantity: Math.max(0, newAvail)
-                        });
+                        }).catch(e => console.error('Background item update failed', e));
                     }
                 }
             }
@@ -452,6 +518,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             return saved;
         } catch (error) {
             console.error('[AppContext] Error adding contract:', error);
+            // Revert optimistic updates
+            setContracts(prev => prev.filter(c => c.id !== tempId));
+            setItems(originalItems); // Rollback items
             throw error;
         }
     };
@@ -486,8 +555,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     // Appointments
     const addAppointment = async (appointment: Appointment) => {
-        const saved = await appointmentsAPI.create(appointment);
-        setAppointments(prev => [...prev, mapAppointmentFromDB(saved)]);
+        // Optimistic UI Update
+        const tempId = crypto.randomUUID();
+        const tempAppt: Appointment = { ...appointment, id: tempId };
+
+        // 1. Update UI immediately
+        setAppointments(prev => [...prev, tempAppt]);
+
+        try {
+            const saved = await appointmentsAPI.create(appointment);
+
+            // 2. Replace temp appointment with real one
+            setAppointments(prev => prev.map(a => a.id === tempId ? mapAppointmentFromDB(saved) : a));
+        } catch (error) {
+            console.error('[AppContext] Error adding appointment:', error);
+            // Revert optimistic update
+            setAppointments(prev => prev.filter(a => a.id !== tempId));
+            throw error;
+        }
     };
 
     const updateAppointment = async (appointment: Appointment) => {

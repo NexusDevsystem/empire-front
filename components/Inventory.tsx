@@ -34,7 +34,8 @@ export default function Inventory() {
             const search = searchTerm.toLowerCase();
             return (
                 representative.name.toLowerCase().includes(search) ||
-                representative.type.toLowerCase().includes(search)
+                representative.type.toLowerCase().includes(search) ||
+                group.some(item => item.code && item.code.toLowerCase().includes(search))
             );
         });
     }, [groupedItems, searchTerm]);
@@ -55,6 +56,7 @@ export default function Inventory() {
                     color: newItemData.color || '',
                     img: newItemData.img || 'https://placehold.co/400x600?text=Sem+Imagem',
                     loc: newItemData.loc || 'Estoque',
+                    code: newItemData.code || '',
                     note: '',
                     price: newItemData.price || 0,
 
@@ -107,7 +109,7 @@ export default function Inventory() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="block w-full h-12 pl-10 pr-3 py-2.5 border-none rounded-xl bg-gray-50 text-navy placeholder-gray-400 focus:outline-none focus:ring-4 focus:ring-gold/5 focus:border-gold transition-all font-medium text-sm"
-                        placeholder="Buscar por nome ou tipo..."
+                        placeholder="Buscar por nome, tipo ou código..."
                     />
                 </div>
             </div>
@@ -201,6 +203,7 @@ export default function Inventory() {
                                         </div>
                                     </div>
                                     <h3 className="text-2xl font-black text-white leading-tight tracking-tight line-clamp-2">{product.name}</h3>
+                                    {product.code && <p className="text-xs font-bold text-white/50 tracking-widest uppercase mt-1">#{product.code}</p>}
                                 </div>
 
                                 {/* Stats Grid */}

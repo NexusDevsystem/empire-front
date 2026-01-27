@@ -5,6 +5,9 @@ import { useToast } from '../contexts/ToastContext';
 import ConfirmationModal from './ConfirmationModal';
 import SignatureModal from './SignatureModal';
 import { getContractColor } from '../utils/colorUtils';
+import { receiptsAPI } from '../services/api';
+import { Receipt } from '../types';
+import PrintableReceipt from './PrintableReceipt';
 
 interface ContractDetailsProps {
     contract: Contract;
@@ -20,6 +23,9 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [sigType, setSigType] = useState<'lessee' | 'attendant'>('lessee');
+    const [createdReceipt, setCreatedReceipt] = useState<Receipt | null>(null);
+    const [isGeneratingReceipt, setIsGeneratingReceipt] = useState(false);
+    const [isReceiptConfirmOpen, setIsReceiptConfirmOpen] = useState(false);
 
     const handleCancelContract = () => {
         // 1. Update Contract Status
@@ -500,9 +506,58 @@ export default function ContractDetails({ contract, client, items, onClose, onPr
                             <span className="material-symbols-outlined text-sm">visibility</span>
                             Visualizar Contrato
                         </button>
+
+                        <button
+                            onClick={() => setIsReceiptConfirmOpen(true)}
+                            disabled={isGeneratingReceipt}
+                            className="px-6 py-3 rounded-xl font-bold bg-white text-navy border border-navy/20 hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-sm"
+                        >
+                            <span className="material-symbols-outlined text-sm">receipt_long</span>
+                            {isGeneratingReceipt ? 'Gerando...' : 'Gerar Recibo'}
+                        </button>
                     </div>
                 </div>
             </div>
+
+            {/* Receipt Confirmation Modal */}
+            <ConfirmationModal
+                isOpen={isReceiptConfirmOpen}
+                onClose={() => setIsReceiptConfirmOpen(false)}
+                onConfirm={async () => {
+                    setIsGeneratingReceipt(true);
+                    try {
+                        const receipt = await receiptsAPI.create({
+                            value: contract.totalValue,
+                            clientName: client.name,
+                            clientId: client.id,
+                            date: new Date().toISOString().split('T')[0],
+                            concept: `Pagamento integral referente ao contrato #${contract.number || contract.id}`,
+                            paymentMethod: contract.paymentMethod || 'PIX',
+                            contractId: contract.id
+                        });
+                        setCreatedReceipt(receipt);
+                        showToast('success', 'Recibo gerado com sucesso!');
+                    } catch (error) {
+                        console.error(error);
+                        showToast('error', 'Erro ao gerar recibo.');
+                    } finally {
+                        setIsGeneratingReceipt(false);
+                    }
+                }}
+                title="Gerar Recibo"
+                description={`Deseja gerar um recibo no valor de R$ ${contract.totalValue.toLocaleString('pt-BR')} para ${client.name}?`}
+                confirmText="Gerar Recibo"
+                cancelText="Cancelar"
+                isDangerous={false}
+            />
+
+            {/* Receipt Modal */}
+            {createdReceipt && (
+                <PrintableReceipt
+                    receipt={createdReceipt}
+                    onClose={() => setCreatedReceipt(null)}
+                />
+            )}
 
             {/* Signature Modal Integration */}
             <SignatureModal

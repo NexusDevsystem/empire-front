@@ -453,6 +453,7 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                                 <h2 className="text-xl md:text-3xl font-black text-white mt-2 md:mt-3 tracking-tight shadow-black drop-shadow-md line-clamp-2">{product.name}</h2>
                                 <div className="flex items-center gap-2 md:gap-4 text-gray-300 mt-1 font-medium text-xs md:text-sm uppercase tracking-wider">
                                     <p className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px] md:text-[16px]">straighten</span> Tam. {product.size}</p>
+                                    {product.code && <p className="flex items-center gap-1 opacity-70"> • #{product.code}</p>}
                                 </div>
                             </div>
                         </div>
@@ -626,7 +627,8 @@ export default function StockDetailsModal({ isOpen, onClose, representativeItem 
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <h4 className="text-sm font-black text-navy uppercase tracking-tight">Unidade {unitIdx + 1}</h4>
-                                                        <span className="text-[10px] font-mono text-gray-300">#{unit.item.id.substring(0, 4)}</span>
+                                                        <h4 className="text-sm font-black text-navy uppercase tracking-tight">Unidade {unitIdx + 1}</h4>
+                                                        {unit.item.code && <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">#{unit.item.code}</span>}
                                                     </div>
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Status Atual</p>
                                                 </div>

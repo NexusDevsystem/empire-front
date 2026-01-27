@@ -203,6 +203,22 @@ export const logsAPI = {
     }
 };
 
+// Receipts API
+export const receiptsAPI = {
+    getAll: async () => {
+        const { data } = await api.get('/receipts');
+        return data.map((receipt: any) => ({ ...receipt, id: receipt._id }));
+    },
+    create: async (receipt: any) => {
+        const { data } = await api.post('/receipts', receipt);
+        return { ...data, id: data._id };
+    },
+    delete: async (id: string) => {
+        const { data } = await api.delete(`/receipts/${id}`);
+        return data;
+    }
+};
+
 // External APIs
 export const viaCepAPI = {
     getAddress: async (cep: string) => {

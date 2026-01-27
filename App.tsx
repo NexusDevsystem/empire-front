@@ -18,6 +18,7 @@ import PendingApprovalScreen from './components/PendingApprovalScreen';
 import NotificationBell from './components/NotificationBell';
 import SystemHistory from './components/SystemHistory';
 import Payables from './components/Payables';
+import Receipts from './components/Receipts';
 
 export default function App() {
   const { showWizard, openWizard, closeWizard, currentView, navigateTo, user, isLoading, profile, signOut } = useApp();
@@ -56,6 +57,7 @@ export default function App() {
       case 'availability': return <AvailabilitySearch />;
       case 'history': return <SystemHistory />;
       case 'payables': return <Payables />;
+      case 'receipts': return <Receipts />;
       default: return <Agenda />;
     }
   };
@@ -74,6 +76,7 @@ export default function App() {
       items: [
         { id: 'clients', icon: 'person', label: 'Clientes / CRM' },
         { id: 'contracts', icon: 'description', label: 'Contratos' },
+        { id: 'receipts', icon: 'receipt_long', label: 'Recibos' },
       ]
     },
     {

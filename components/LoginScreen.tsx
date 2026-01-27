@@ -7,6 +7,7 @@ export default function LoginScreen() {
     const { showToast } = useToast();
     const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     // Form State
     const [email, setEmail] = useState('');
@@ -92,14 +93,25 @@ export default function LoginScreen() {
 
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Senha</label>
-                            <input
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-navy"
-                                placeholder={isLogin ? "••••••••" : "Crie uma senha forte"}
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    required
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all font-medium text-navy pr-12"
+                                    placeholder={isLogin ? "••••••••" : "Crie uma senha forte"}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors p-1"
+                                >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                        {showPassword ? 'visibility' : 'visibility_off'}
+                                    </span>
+                                </button>
+                            </div>
                         </div>
 
                         <button

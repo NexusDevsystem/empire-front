@@ -162,7 +162,8 @@ export default function NewContractModal({ isOpen, onClose }: NewContractModalPr
         rEnd.setHours(0, 0, 0, 0);
 
         items.forEach(item => {
-            const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.code && item.code.toLowerCase().includes(searchTerm.toLowerCase()));
             const matchesCat = catFilter === 'Todos' || item.type.includes(catFilter);
             if (!matchesSearch || !matchesCat) return;
 
